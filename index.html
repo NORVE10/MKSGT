@@ -636,6 +636,14 @@ function hide() {
 
 function setHash(slug, replace) {
   if (location.hash.slice(1) === slug) return;
+  if (!slug) {
+    // Going to an empty "#" scrolls the page to the top, so drop the hash in place instead.
+    const y = window.scrollY;
+    try { history.replaceState(history.state, "", location.pathname + location.search); }
+    catch (e) { location.replace("#"); }
+    if (window.scrollY !== y) window.scrollTo({ top: y, behavior: "instant" });
+    return;
+  }
   if (replace) location.replace("#" + slug);
   else location.hash = slug;
 }
