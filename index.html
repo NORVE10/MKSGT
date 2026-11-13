@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MKSGT</title>
+<meta name="description" content="MKSGT is a class writing project in English: twenty students, twenty topics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap">
+<style>
+/* Layout: Apple-style product page on sand. An orbit of the 20 topic icons turns around the MKSGT wordmark,
+   then a 4 x 5 grid of topic tiles; each tile expands into a sheet with "Coming soon" and the writer's name. */
+:root {
+  --sand: #EEE5D7;      /* page background */
+  --sand-deep: #E5D8C5; /* hero glow edge, footer band */
+  --cream: #FBF7F0;     /* tiles and sheet */
+  --ink: #1F1A15;       /* espresso text */
+  --ink-2: #6B6052;     /* secondary text */
+  --ink-3: #998C7B;     /* captions */
+  --line: rgba(70, 52, 30, .12);
+  --bronze: #8C6A45;    /* accent */
+  --scrim: rgba(45, 34, 22, .32);
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --max: 1240px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--sand);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.47;
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; z-index: 30;
+  height: env(safe-area-inset-top, 0px); background: var(--sand);
+}
+a { color: inherit; }
+svg { display: block; }
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.inner { max-width: var(--max); margin: 0 auto; }
+
+/* ---------- Nav ---------- */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: rgba(238, 229, 215, .78);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line);
+}
+.nav .inner { height: 48px; display: flex; align-items: center; justify-content: space-between; }
+.brand { font-weight: 700; font-size: 17px; letter-spacing: -.02em; text-decoration: none; }
+.nav-links { display: flex; gap: 24px; font-size: 13px; }
+.nav-links a { color: var(--ink-2); text-decoration: none; transition: color .2s; }
+
+/* ---------- Hero ---------- */
+.hero {
+  --mark: 168px; --r1: 330px; --r2: 520px; --chip: 60px;
+  --spin1: 30s; --spin2: 46s;
+  position: relative; overflow: hidden;
+  min-height: clamp(600px, 90svh, 900px);
+  display: grid; place-items: center;
+  padding-block: 112px 88px;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(251, 247, 240, .95), rgba(251, 247, 240, 0) 70%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, var(--sand), var(--sand-deep));
+}
+.hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 26%; z-index: 1;
+  background: linear-gradient(180deg, rgba(238, 229, 215, 0), var(--sand));
+  pointer-events: none;
+}
+.orbit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.ring {
+  position: absolute; left: 0; top: 0;
+  width: calc(var(--r) * 2); height: calc(var(--r) * 2);
+  margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  border-radius: 50%;
+  border: 1px solid rgba(140, 106, 69, .16);
+  will-change: transform;
+  animation: spin var(--dur) linear infinite, ring-in 1.4s var(--ease) .2s backwards;
+}
+.ring.r1 { --r: var(--r1); --dur: var(--spin1); }
+.ring.r2 { --r: var(--r2); --dur: var(--spin2); animation-direction: reverse, normal; }
+.chip {
+  position: absolute; left: 50%; top: 50%;
+  width: var(--chip); height: var(--chip);
+  margin: calc(var(--chip) / -2) 0 0 calc(var(--chip) / -2);
+  transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(var(--a) * -1));
+}
+.chip-in { width: 100%; height: 100%; will-change: transform; animation: spin var(--dur) linear infinite reverse; }
+.r2 .chip-in { animation-direction: normal; }
+.hero.paused .ring, .hero.paused .chip-in,
+.hero.offscreen .ring, .hero.offscreen .chip-in,
+.is-sheet-open .ring, .is-sheet-open .chip-in { animation-play-state: paused; }
+.bubble {
+  width: 100%; height: 100%; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--c);
+  background: rgba(251, 247, 240, .94);
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 10px 26px -14px rgba(70, 50, 25, .45), 0 1px 2px rgba(70, 50, 25, .08);
+  text-decoration: none;
+  transition: transform .5s var(--ease), background .3s;
+  animation: pop .9s var(--ease) backwards;
+  animation-delay: calc(.55s + var(--i) * 45ms);
+}
+.bubble svg { width: 46%; height: 46%; }
+
+.hero-copy { position: relative; z-index: 2; text-align: center; display: grid; justify-items: center; }
+.eyebrow {
+  margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .01em; color: var(--bronze);
+  animation: rise 1s var(--ease) .1s backwards;
+}
+.mark {
+  margin: 6px 0 0; font-size: var(--mark); line-height: .95; font-weight: 750;
+  letter-spacing: -.05em; display: flex;
+}
+.mark .l {
+  display: inline-block;
+  animation: letter 1.1s var(--ease) backwards;
+  animation-delay: calc(.2s + var(--i) * 80ms);
+}
+.mark .l span {
+  display: inline-block; padding-bottom: .04em;
+  background: linear-gradient(180deg, #2A211A 0%, #2A211A 45%, #7B5C3E 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.tagline {
+  margin: 22px 0 0; font-size: clamp(19px, 2.2vw, 28px); font-weight: 600;
+  letter-spacing: -.015em; color: var(--ink-2); line-height: 1.25;
+  animation: rise 1s var(--ease) .75s backwards;
+}
+.cta { margin-top: 34px; display: flex; gap: 14px; align-items: center; animation: rise 1s var(--ease) .9s backwards; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 48px; padding: 0 24px; border-radius: 999px;
+  background: var(--ink); color: var(--cream);
+  font-size: 17px; font-weight: 500; text-decoration: none;
+  transition: transform .4s var(--ease), background .3s;
+}
+.btn svg { width: 16px; height: 16px; }
+
+.motion-toggle {
+  position: absolute; z-index: 3;
+  right: max(24px, calc(env(safe-area-inset-right, 0px) + 16px)); bottom: 24px;
+  width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--ink); background: rgba(31, 26, 21, .08);
+  transition: background .3s, transform .4s var(--ease);
+  animation: rise 1s var(--ease) 1.2s backwards;
+}
+.motion-toggle span { display: grid; place-items: center; }
+.motion-toggle svg { width: 15px; height: 15px; }
+.motion-toggle .i-play, .hero.paused .motion-toggle .i-pause { display: none; }
+.hero.paused .motion-toggle .i-play { display: grid; }
+
+/* ---------- Topics ---------- */
+.topics { padding-block: 120px 140px; }
+.head { margin-bottom: 48px; display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.head h2 {
+  margin: 0; font-size: clamp(40px, 6vw, 64px); line-height: 1.04; font-weight: 750;
+  letter-spacing: -.04em; text-wrap: balance;
+}
+.head p { margin: 14px 0 0; max-width: 46ch; font-size: clamp(17px, 1.6vw, 21px); color: var(--ink-2); line-height: 1.4; }
+.count { font-size: 15px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+
+.card {
+  position: relative; display: block; aspect-ratio: 4 / 5; max-width: 100%;
+  border-radius: 28px; overflow: hidden; isolation: isolate;
+  container-type: inline-size;
+  text-decoration: none; color: var(--ink);
+  background: linear-gradient(168deg, var(--cream) 28%, color-mix(in oklab, var(--c) 17%, var(--cream)) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 1px 2px rgba(60, 40, 20, .05), 0 14px 30px -18px rgba(60, 40, 20, .28);
+  transition: transform .6s var(--ease), box-shadow .6s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.card:focus-visible { outline: 3px solid color-mix(in oklab, var(--c) 70%, var(--ink)); outline-offset: 4px; }
+.card:active { transform: scale(.98); transition-duration: .2s; }
+
+/* Tiles rise in one after another as they scroll into view */
+.reveal-ready .card:not(.in) { opacity: 0; }
+.reveal-ready .card.in { animation: card-reveal 1s cubic-bezier(.2, .75, .25, 1) var(--d, 0ms) backwards; }
+.reveal-ready .card.in .ic.big { animation: art-reveal 1.3s cubic-bezier(.2, .75, .25, 1) var(--d, 0ms) backwards; }
+
+.art { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.ic { position: absolute; color: var(--c); transition: transform .9s var(--ease); }
+.ic svg { width: 100%; height: 100%; }
+.ic.big { width: 76%; aspect-ratio: 1; right: -14%; bottom: -12%; transform: rotate(-10deg); }
+.ic.s1 { width: 15%; aspect-ratio: 1; right: 9%; top: 8%; transform: rotate(12deg); opacity: .5; }
+.ic.s2 { width: 13%; aspect-ratio: 1; left: 9%; top: 47%; transform: rotate(-14deg); opacity: .42; }
+.ic.s3 { width: 11%; aspect-ratio: 1; left: 30%; bottom: 9%; transform: rotate(8deg); opacity: .36; }
+
+.card-copy { position: absolute; left: 0; top: 0; right: 0; padding: 9cqi 25cqi 0 9cqi; }
+.num {
+  display: block; font-size: 13px; font-weight: 600; letter-spacing: .02em;
+  color: color-mix(in oklab, var(--c) 78%, var(--ink));
+  font-variant-numeric: tabular-nums;
+}
+.title {
+  display: block; margin-top: 4px;
+  font-size: clamp(22px, 9.4cqi, 34px); font-weight: 700; line-height: 1.08;
+  letter-spacing: -.035em; text-wrap: balance;
+}
+.plus {
+  position: absolute; right: 16px; bottom: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(31, 26, 21, .88); color: var(--cream);
+  transition: transform .5s var(--ease), background .3s;
+}
+.plus svg { width: 16px; height: 16px; }
+
+@media (hover: hover) {
+  .nav-links a:hover { color: var(--ink); }
+  .bubble:hover { transform: scale(1.14); background: var(--cream); }
+  .btn:hover { background: #3A3027; transform: scale(1.03); }
+  .motion-toggle:hover { background: rgba(31, 26, 21, .14); }
+  .card:hover { transform: translateY(-6px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 2px 4px rgba(60, 40, 20, .06), 0 28px 50px -24px rgba(60, 40, 20, .40); }
+  .card:hover .ic.big { transform: rotate(-3deg) scale(1.06); }
+  .card:hover .ic.s1 { transform: rotate(24deg) translate(-6%, 10%); }
+  .card:hover .ic.s2 { transform: rotate(-4deg) translate(10%, -8%); }
+  .card:hover .ic.s3 { transform: rotate(20deg) translate(12%, -12%); }
+  .card:hover .plus { transform: rotate(90deg); background: var(--ink); }
+  .close:hover { transform: scale(1.08); background: var(--ink); }
+  .pager a:hover span { color: var(--bronze); }
+}
+
+/* ---------- Sheet (topic page) ---------- */
+.sheet-wrap {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid;
+  padding-block: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.scrim {
+  position: fixed; inset: 0; background: var(--scrim);
+  -webkit-backdrop-filter: blur(12px) saturate(140%); backdrop-filter: blur(12px) saturate(140%);
+  animation: fade .45s ease both;
+}
+.sheet {
+  position: relative; width: 100%; max-width: 860px; margin: auto;
+  background: var(--cream); border-radius: 32px; overflow: hidden;
+  box-shadow: 0 40px 100px -30px rgba(40, 28, 15, .5);
+  outline: none; touch-action: pan-y;
+  animation: sheet-in .6s var(--ease) both;
+}
+.sheet-wrap[data-enter="morph"] .sheet, .sheet-wrap[data-enter="morph"] .scrim { animation: none; }
+.close {
+  position: absolute; right: 18px; top: 18px; z-index: 3;
+  width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  display: grid; place-items: center;
+  background: rgba(31, 26, 21, .8); color: var(--cream);
+  transition: transform .4s var(--ease), background .3s;
+}
+.close:focus-visible, .pager a:focus-visible, .btn:focus-visible, .motion-toggle:focus-visible { outline: 3px solid var(--bronze); outline-offset: 3px; }
+.close svg { width: 16px; height: 16px; }
+
+.banner {
+  position: relative; height: clamp(220px, min(38vw, 36svh), 330px); overflow: hidden; isolation: isolate;
+  background: linear-gradient(160deg, color-mix(in oklab, var(--c) 8%, var(--cream)) 10%, color-mix(in oklab, var(--c) 26%, var(--cream)) 100%);
+}
+.banner .ic.big { width: 46%; right: -4%; bottom: -26%; }
+.banner .ic.s1 { width: 9%; right: 46%; top: 12%; }
+.banner .ic.s2 { width: 8%; left: auto; right: 64%; top: 28%; }
+.banner .ic.s3 { width: 7%; left: auto; right: 36%; top: 42%; bottom: auto; }
+.banner .ic { animation: drift 9s ease-in-out infinite alternate; }
+.banner .ic.s1 { animation-delay: -2s; } .banner .ic.s2 { animation-delay: -4s; } .banner .ic.s3 { animation-delay: -6s; }
+.banner-copy { position: absolute; left: 44px; bottom: 36px; right: 44px; }
+.banner-copy .num { font-size: 15px; }
+.banner-copy h2 {
+  margin: 4px 0 0; font-size: clamp(40px, 7vw, 68px); line-height: 1; font-weight: 750; letter-spacing: -.045em;
+}
+
+.sheet-body { padding: 44px 44px 36px; display: grid; gap: 30px; }
+.soon-row { display: grid; gap: 10px; }
+.pill {
+  justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+  color: color-mix(in oklab, var(--c) 80%, var(--ink));
+  background: color-mix(in oklab, var(--c) 12%, var(--cream));
+}
+.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); animation: pulse 1.8s ease-in-out infinite; }
+.soon {
+  margin: 4px 0 0; font-size: clamp(44px, 7.5vw, 76px); line-height: 1; font-weight: 750; letter-spacing: -.05em;
+}
+.soon-row p { margin: 6px 0 0; font-size: 19px; color: var(--ink-2); max-width: 40ch; }
+
+.writer {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px; border-radius: 22px; background: var(--sand);
+}
+.avatar {
+  width: 56px; height: 56px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  background: var(--c); color: var(--cream);
+  font-size: 19px; font-weight: 650; letter-spacing: .01em;
+}
+.writer-label { font-size: 13px; font-weight: 500; color: var(--ink-3); }
+.writer-name { font-size: clamp(22px, 3vw, 28px); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; }
+
+.pager { display: flex; justify-content: space-between; gap: 12px; padding-top: 4px; border-top: 1px solid var(--line); }
+.pager a { display: grid; gap: 2px; padding: 16px 4px 0; text-decoration: none; min-width: 0; -webkit-tap-highlight-color: transparent; }
+.pager a:last-child { text-align: right; }
+.pager small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.pager span { font-size: 17px; font-weight: 600; letter-spacing: -.01em; transition: color .2s; }
+.swipe-hint { margin: -14px 0 0; text-align: center; font-size: 12px; color: var(--ink-3); }
+
+/* ---------- Footer ---------- */
+.foot { border-top: 1px solid var(--line); background: var(--sand-deep); }
+.foot .inner {
+  padding-block: 28px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between;
+  font-size: 13px; color: var(--ink-2);
+}
+.foot strong { color: var(--ink); font-weight: 700; letter-spacing: -.01em; }
+
+/* ---------- Page transitions (View Transitions API) ---------- */
+::view-transition-group(topic) { animation-duration: .62s; animation-timing-function: cubic-bezier(.3, .8, .25, 1); }
+::view-transition-old(topic), ::view-transition-new(topic) { height: 100%; object-fit: cover; object-position: 50% 0; }
+::view-transition-old(topic) { animation: vt-out .3s ease both; }
+::view-transition-new(topic) { animation: vt-in .42s ease .1s both; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .5s; }
+html[data-dir="next"]::view-transition-old(topic) { animation: vt-out-left .2s cubic-bezier(.4, 0, 1, 1) both; }
+html[data-dir="next"]::view-transition-new(topic) { animation: vt-in-right .5s cubic-bezier(.2, .8, .2, 1) .17s both; }
+html[data-dir="prev"]::view-transition-old(topic) { animation: vt-out-right .2s cubic-bezier(.4, 0, 1, 1) both; }
+html[data-dir="prev"]::view-transition-new(topic) { animation: vt-in-left .5s cubic-bezier(.2, .8, .2, 1) .17s both; }
+
+/* ---------- Motion ---------- */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes ring-in { from { opacity: 0; scale: .86; } }
+@keyframes pop { from { opacity: 0; transform: scale(.4); } }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
+@keyframes letter { from { opacity: 0; transform: translateY(32%) scale(.96); filter: blur(10px); } }
+@keyframes card-reveal { from { opacity: 0; transform: translateY(56px) scale(.96); } }
+@keyframes art-reveal { from { opacity: 0; transform: rotate(-24deg) translate(14%, 14%) scale(.86); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(40px) scale(.97); } }
+@keyframes drift { to { translate: 0 -8%; } }
+@keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; } }
+@keyframes vt-out-left { to { opacity: 0; transform: translateX(-9%) scale(.96); } }
+@keyframes vt-in-right { from { opacity: 0; transform: translateX(9%) scale(.96); } }
+@keyframes vt-out-right { to { opacity: 0; transform: translateX(9%) scale(.96); } }
+@keyframes vt-in-left { from { opacity: 0; transform: translateX(-9%) scale(.96); } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1023px) {
+  .hero { --mark: 132px; --r1: 270px; --r2: 430px; --chip: 52px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+@media (max-width: 639px) {
+  .hero { --mark: 20vw; --r1: 172px; --r2: 272px; --chip: 44px; min-height: clamp(560px, 86svh, 760px); padding-block: 96px 80px; }
+  .eyebrow { font-size: 13px; }
+  .tagline { font-size: 18px; margin-top: 16px; }
+  .cta { margin-top: 26px; }
+  .btn { height: 44px; font-size: 16px; padding: 0 20px; }
+  .motion-toggle { right: max(16px, calc(env(safe-area-inset-right, 0px) + 12px)); bottom: 18px; width: 36px; height: 36px; }
+  .nav-links { gap: 18px; }
+  .topics { padding-block: 80px 96px; }
+  .head { margin-bottom: 28px; }
+  .grid { grid-template-columns: 1fr; gap: 14px; }
+  .card { aspect-ratio: 16 / 10; border-radius: 24px; }
+  .card-copy { padding: 22px 22px 0; }
+  .title { font-size: 30px; }
+  .ic.big { width: 50%; right: -6%; bottom: -22%; }
+  .ic.s1 { width: 10%; right: 8%; top: 12%; }
+  .ic.s2 { width: 9%; left: auto; right: 44%; top: auto; bottom: 14%; }
+  .ic.s3 { width: 8%; left: 8%; bottom: 14%; }
+  .sheet-wrap { padding: max(40px, calc(env(safe-area-inset-top, 0px) + 12px)) 0 0; }
+  .sheet { border-radius: 28px 28px 0 0; margin: auto auto 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .banner { height: 230px; }
+  .banner .ic.big { width: 62%; right: -10%; bottom: -24%; }
+  .banner .ic.s1 { width: 12%; right: 58%; top: 12%; }
+  .banner .ic.s2 { display: none; }
+  .banner .ic.s3 { width: 10%; right: 40%; top: 30%; bottom: auto; }
+  .banner-copy { left: 24px; right: 24px; bottom: 24px; }
+  .sheet-body { padding: 28px 24px 28px; gap: 26px; }
+  .soon-row p { font-size: 17px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .swipe-hint { display: none; }
+}
+/* Reduced motion: the orbit keeps turning (it has a pause button); entrances become plain fades. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ring { animation: spin var(--dur) linear infinite; }
+  .eyebrow, .tagline, .cta, .motion-toggle, .mark .l, .bubble, .sheet { animation-name: fade; }
+  .banner .ic, .pill i { animation: none; }
+  .ic { transition: none; }
+}
+</style>
+</head>
+<body>
+<nav class="nav gutter" aria-label="Main">
+  <div class="inner">
+    <a class="brand" href="#top">MKSGT</a>
+    <div class="nav-links">
+      <a href="#topics">Topics</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero gutter" id="top">
+  <div class="orbit" id="orbit"></div>
+  <div class="hero-copy">
+    <p class="eyebrow">A class writing project in English</p>
+    <h1 class="mark" aria-label="MKSGT"><span class="l" style="--i:0"><span>M</span></span><span class="l" style="--i:1"><span>K</span></span><span class="l" style="--i:2"><span>S</span></span><span class="l" style="--i:3"><span>G</span></span><span class="l" style="--i:4"><span>T</span></span></h1>
+    <p class="tagline">Twenty students. Twenty topics.</p>
+    <div class="cta">
+      <a class="btn" href="#topics">Explore the topics
+        <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z"/></svg>
+      </a>
+    </div>
+  </div>
+  <button class="motion-toggle" id="motion" type="button" aria-label="Pause animation">
+    <span class="i-pause" aria-hidden="true"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,48V208a16,16,0,0,1-16,16H160a16,16,0,0,1-16-16V48a16,16,0,0,1,16-16h40A16,16,0,0,1,216,48ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Z"/></svg></span>
+    <span class="i-play" aria-hidden="true"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z"/></svg></span>
+  </button>
+</header>
+
+<main>
+  <section class="topics gutter" id="topics" aria-labelledby="topics-h">
+    <div class="inner">
+      <div class="head">
+        <div>
+          <h2 id="topics-h">Explore the topics.</h2>
+          <p>Each topic is written by a different student in the class. Open one to see who is writing it.</p>
+        </div>
+        <span class="count">20 topics</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot gutter">
+  <div class="inner">
+    <span><strong>MKSGT</strong> &nbsp;A class writing project in English</span>
+    <span>Pages for each topic are coming soon.</span>
+  </div>
+</footer>
+
+<div class="sheet-wrap gutter" id="sheet" hidden>
+  <div class="scrim" data-close></div>
+  <article class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" id="sheet-card" tabindex="-1">
+    <button class="close" type="button" data-close aria-label="Close">
+      <svg viewBox="0 0 256 256" fill="currentColor"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>
+    </button>
+    <div class="banner">
+      <span class="art" id="sheet-art" aria-hidden="true"></span>
+      <div class="banner-copy">
+        <span class="num" id="sheet-num"></span>
+        <h2 id="sheet-title"></h2>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div class="soon-row">
+        <span class="pill"><i></i>In progress</span>
+        <h3 class="soon">Coming soon.</h3>
+        <p>This page is still being written. Check back soon to read it.</p>
+      </div>
+      <div class="writer">
+        <div class="avatar" id="sheet-avatar" aria-hidden="true"></div>
+        <div>
+          <div class="writer-label">Written by</div>
+          <div class="writer-name" id="sheet-name"></div>
+        </div>
+      </div>
+      <nav class="pager" aria-label="More topics">
+        <a id="prev" href="#"><small>Previous</small><span></span></a>
+        <a id="next" href="#"><small>Next</small><span></span></a>
+      </nav>
+      <p class="swipe-hint">Swipe left or right for more topics</p>
+    </div>
+  </article>
+</div>
+
+<script>
+const ICONS = {"graduation-cap:duotone":"<path d=\"M216,113.07v53.22a8,8,0,0,1-2,5.31c-11.3,12.59-38.9,36.4-86,36.4s-74.68-23.81-86-36.4a8,8,0,0,1-2-5.31V113.07L128,160Z\" opacity=\"0.2\"/><path d=\"M251.76,88.94l-120-64a8,8,0,0,0-7.52,0l-120,64a8,8,0,0,0,0,14.12L32,117.87v48.42a15.91,15.91,0,0,0,4.06,10.65C49.16,191.53,78.51,216,128,216a130,130,0,0,0,48-8.76V240a8,8,0,0,0,16,0V199.51a115.63,115.63,0,0,0,27.94-22.57A15.91,15.91,0,0,0,224,166.29V117.87l27.76-14.81a8,8,0,0,0,0-14.12ZM128,200c-43.27,0-68.72-21.14-80-33.71V126.4l76.24,40.66a8,8,0,0,0,7.52,0L176,143.47v46.34C163.4,195.69,147.52,200,128,200Zm80-33.75a97.83,97.83,0,0,1-16,14.25V134.93l16-8.53ZM188,118.94l-.22-.13-56-29.87a8,8,0,0,0-7.52,14.12L171,128l-43,22.93L25,96,128,41.07,231,96Z\"/>","graduation-cap:duothin":"<path d=\"M216,113.07v53.22a8,8,0,0,1-2,5.31c-11.3,12.59-38.9,36.4-86,36.4s-74.68-23.81-86-36.4a8,8,0,0,1-2-5.31V113.07L128,160Z\" opacity=\"0.2\"/><path d=\"M249.88,92.47l-120-64a4,4,0,0,0-3.76,0l-120,64a4,4,0,0,0,0,7.06L36,115.47v50.82a11.92,11.92,0,0,0,3,8c12.65,14.09,41,37.73,89,37.73,21,0,38.2-4.52,52-10.79V240a4,4,0,0,0,8,0V197.18a111.64,111.64,0,0,0,29-22.91,11.94,11.94,0,0,0,3-8V115.47l29.88-15.94a4,4,0,0,0,0-7.06ZM128,204c-44.83,0-71.25-22-83-35.08a3.92,3.92,0,0,1-1-2.63V119.73l82.12,43.8a4,4,0,0,0,3.76,0L180,136.8v55.53C166.58,199,149.39,204,128,204Zm84-37.71a4,4,0,0,1-1,2.64,103.32,103.32,0,0,1-23,19v-55.4l24-12.8Zm-24.59-42.51a4,4,0,0,0-1.53-1.44l-56-29.87a4,4,0,0,0-3.76,7.06L179.5,128,128,155.47,16.5,96,128,36.53,239.5,96Z\"/>","books:light":"<path d=\"M104,34H56A14,14,0,0,0,42,48V208a14,14,0,0,0,14,14h48a14,14,0,0,0,14-14V48A14,14,0,0,0,104,34ZM54,78h52V178H54Zm2-32h48a2,2,0,0,1,2,2V66H54V48A2,2,0,0,1,56,46Zm48,164H56a2,2,0,0,1-2-2V190h52v18A2,2,0,0,1,104,210Zm125.7-15L196.51,37.16a14,14,0,0,0-16.63-10.85L133.07,36.37A14.09,14.09,0,0,0,122.3,53l33.19,157.81a14,14,0,0,0,6.1,8.9,13.85,13.85,0,0,0,7.57,2.26,13.55,13.55,0,0,0,3-.32l46.81-10.05A14.09,14.09,0,0,0,229.7,195Zm-82.81-83.32,50.73-10.9,14.12,67.16L161,178.81Zm-6.63-31.56L191,69.19,195.15,89l-50.73,10.9Zm-4.66-32,46.8-10.05a2.18,2.18,0,0,1,.42,0,1.89,1.89,0,0,1,1.05.32,2,2,0,0,1,.89,1.31l3.75,17.82L137.79,68.34l-3.74-17.78A2.07,2.07,0,0,1,135.6,48.1Zm80.81,151.8L169.6,210a1.92,1.92,0,0,1-1.47-.27,2,2,0,0,1-.89-1.31l-3.75-17.82,50.72-10.9L218,197.43A2.07,2.07,0,0,1,216.41,199.9Z\"/>","pencil-simple:light":"<path d=\"M225.9,74.78,181.21,30.09a14,14,0,0,0-19.8,0L38.1,153.41a13.94,13.94,0,0,0-4.1,9.9V208a14,14,0,0,0,14,14H92.69a13.94,13.94,0,0,0,9.9-4.1L225.9,94.58a14,14,0,0,0,0-19.8ZM94.1,209.41a2,2,0,0,1-1.41.59H48a2,2,0,0,1-2-2V163.31a2,2,0,0,1,.59-1.41L136,72.48,183.51,120ZM217.41,86.1,192,111.51,144.49,64,169.9,38.58a2,2,0,0,1,2.83,0l44.68,44.69a2,2,0,0,1,0,2.83Z\"/>","exam:light":"<path d=\"M216,42H40A14,14,0,0,0,26,56V216a6,6,0,0,0,8.68,5.37L64,206.71l29.32,14.66a6,6,0,0,0,5.36,0L128,206.71l29.32,14.66a6,6,0,0,0,5.36,0L192,206.71l29.32,14.66A6,6,0,0,0,224,222a5.93,5.93,0,0,0,3.15-.9A6,6,0,0,0,230,216V56A14,14,0,0,0,216,42Zm2,164.29-23.32-11.66a6,6,0,0,0-5.36,0L160,209.29l-29.32-14.66a6,6,0,0,0-5.36,0L96,209.29,66.68,194.63a6,6,0,0,0-5.36,0L38,206.29V56a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2Zm-116.63-113a6,6,0,0,0-10.74,0l-32,64a6,6,0,1,0,10.74,5.36L75.71,150h40.58l6.34,12.68a6,6,0,1,0,10.74-5.36ZM81.71,138,96,109.42,110.29,138ZM198,128a6,6,0,0,1-6,6H174v18a6,6,0,0,1-12,0V134H144a6,6,0,0,1,0-12h18V104a6,6,0,0,1,12,0v18h18A6,6,0,0,1,198,128Z\"/>","cpu:duotone":"<path d=\"M200,48H56a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H200a8,8,0,0,0,8-8V56A8,8,0,0,0,200,48ZM152,152H104V104h48Z\" opacity=\"0.2\"/><path d=\"M152,96H104a8,8,0,0,0-8,8v48a8,8,0,0,0,8,8h48a8,8,0,0,0,8-8V104A8,8,0,0,0,152,96Zm-8,48H112V112h32Zm88,0H216V112h16a8,8,0,0,0,0-16H216V56a16,16,0,0,0-16-16H160V24a8,8,0,0,0-16,0V40H112V24a8,8,0,0,0-16,0V40H56A16,16,0,0,0,40,56V96H24a8,8,0,0,0,0,16H40v32H24a8,8,0,0,0,0,16H40v40a16,16,0,0,0,16,16H96v16a8,8,0,0,0,16,0V216h32v16a8,8,0,0,0,16,0V216h40a16,16,0,0,0,16-16V160h16a8,8,0,0,0,0-16Zm-32,56H56V56H200v95.87s0,.09,0,.13,0,.09,0,.13V200Z\"/>","cpu:duothin":"<path d=\"M200,48H56a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H200a8,8,0,0,0,8-8V56A8,8,0,0,0,200,48ZM152,152H104V104h48Z\" opacity=\"0.2\"/><path d=\"M152,100H104a4,4,0,0,0-4,4v48a4,4,0,0,0,4,4h48a4,4,0,0,0,4-4V104A4,4,0,0,0,152,100Zm-4,48H108V108h40Zm84,0H212V108h20a4,4,0,0,0,0-8H212V56a12,12,0,0,0-12-12H156V24a4,4,0,0,0-8,0V44H108V24a4,4,0,0,0-8,0V44H56A12,12,0,0,0,44,56v44H24a4,4,0,0,0,0,8H44v40H24a4,4,0,0,0,0,8H44v44a12,12,0,0,0,12,12h44v20a4,4,0,0,0,8,0V212h40v20a4,4,0,0,0,8,0V212h44a12,12,0,0,0,12-12V156h20a4,4,0,0,0,0-8Zm-28,52a4,4,0,0,1-4,4H56a4,4,0,0,1-4-4V56a4,4,0,0,1,4-4H200a4,4,0,0,1,4,4Z\"/>","laptop:light":"<path d=\"M232,170H222V72a22,22,0,0,0-22-22H56A22,22,0,0,0,34,72v98H24a6,6,0,0,0-6,6v16a22,22,0,0,0,22,22H216a22,22,0,0,0,22-22V176A6,6,0,0,0,232,170ZM46,72A10,10,0,0,1,56,62H200a10,10,0,0,1,10,10v98H46ZM226,192a10,10,0,0,1-10,10H40a10,10,0,0,1-10-10V182H226ZM150,88a6,6,0,0,1-6,6H112a6,6,0,0,1,0-12h32A6,6,0,0,1,150,88Z\"/>","wifi-high:light":"<path d=\"M138,204a10,10,0,1,1-10-10A10,10,0,0,1,138,204ZM235.81,88.55a170,170,0,0,0-215.62,0,6,6,0,1,0,7.62,9.27,158,158,0,0,1,200.38,0,6,6,0,1,0,7.62-9.27Zm-32.08,35.79a122,122,0,0,0-151.46,0,6,6,0,0,0,7.46,9.41,110,110,0,0,1,136.54,0A6,6,0,0,0,200,135a6,6,0,0,0,3.73-10.7Zm-32.2,35.81a74,74,0,0,0-87.06,0,6,6,0,0,0,7.06,9.7,62,62,0,0,1,72.94,0,6,6,0,0,0,8.38-1.32A6,6,0,0,0,171.53,160.15Z\"/>","code:light":"<path d=\"M67.84,92.61,25.37,128l42.47,35.39a6,6,0,1,1-7.68,9.22l-48-40a6,6,0,0,1,0-9.22l48-40a6,6,0,0,1,7.68,9.22Zm176,30.78-48-40a6,6,0,1,0-7.68,9.22L230.63,128l-42.47,35.39a6,6,0,1,0,7.68,9.22l48-40a6,6,0,0,0,0-9.22Zm-81.79-89A6,6,0,0,0,154.36,38l-64,176A6,6,0,0,0,94,221.64a6.15,6.15,0,0,0,2,.36,6,6,0,0,0,5.64-3.95l64-176A6,6,0,0,0,162.05,34.36Z\"/>","film-slate:duotone":"<path d=\"M67.71,64.59l47.79,27.6L40.43,112,32.27,82a7.76,7.76,0,0,1,5.58-9.52ZM199.84,37.76a7.9,7.9,0,0,0-9.66-5.49L126.61,49.05,174.4,76.64,208,67.77Z\" opacity=\"0.2\"/><path d=\"M216,104H102.09L210,75.51a8,8,0,0,0,5.68-9.84l-8.16-30a15.93,15.93,0,0,0-19.42-11.13L35.81,64.74a15.75,15.75,0,0,0-9.7,7.4,15.51,15.51,0,0,0-1.55,12L32,111.56c0,.14,0,.29,0,.44v88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V112A8,8,0,0,0,216,104ZM192.16,40l6,22.07-22.62,6L147.42,51.83Zm-66.69,17.6,28.12,16.24-36.94,9.75L88.53,67.37Zm-79.4,44.62-6-22.08,26.5-7L94.69,89.4ZM208,200H48V120H208v80Z\"/>","film-slate:duothin":"<path d=\"M67.71,64.59l47.79,27.6L40.43,112,32.27,82a7.76,7.76,0,0,1,5.58-9.52ZM199.84,37.76a7.9,7.9,0,0,0-9.66-5.49L126.61,49.05,174.4,76.64,208,67.77Z\" opacity=\"0.2\"/><path d=\"M216,108H71.26L209,71.64a4,4,0,0,0,2.84-4.92l-8.16-30a11.92,11.92,0,0,0-14.54-8.31L36.83,68.61a11.78,11.78,0,0,0-7.26,5.53A11.59,11.59,0,0,0,28.41,83l7.67,28.19A3.87,3.87,0,0,0,36,112v88a12,12,0,0,0,12,12H208a12,12,0,0,0,12-12V112A4,4,0,0,0,216,108ZM126,53.33l38,21.92L116.08,87.9,78.12,66Zm65.16-17.2a4,4,0,0,1,1-.13A3.88,3.88,0,0,1,196,38.81l7.1,26.12L175,72.35,137,50.43Zm-154.7,42a3.86,3.86,0,0,1,2.37-1.8l28.27-7.46,38,21.91L43.25,107.12,36.13,80.94A3.66,3.66,0,0,1,36.5,78.14ZM212,200a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V116H212Z\"/>","popcorn:light":"<path d=\"M228.14,75.66a6,6,0,0,0-5.79-1.43l-1.41.4a42,42,0,0,0-54.07-30.52,42,42,0,0,0-77.74,0A42,42,0,0,0,35.06,74.63l-1.41-.4a6,6,0,0,0-7.49,7.14L56.71,211.21A14,14,0,0,0,70.34,222H185.66a14,14,0,0,0,13.63-10.79L229.84,81.37A6,6,0,0,0,228.14,75.66ZM76,54a29.54,29.54,0,0,1,14,3.49,6,6,0,0,0,8.68-4,30,30,0,0,1,58.56,0,6,6,0,0,0,8.67,4A29.6,29.6,0,0,1,180,54a30,30,0,0,1,29.39,23.94L168.32,89.67l-35.12-14a14,14,0,0,0-10.4,0l-35.12,14L46.61,77.94A30,30,0,0,1,76,54Zm85.44,45.84L146.75,210h-37.5L94.56,99.84l32.7-13.08a2,2,0,0,1,1.48,0Zm-93,108.62L40.18,88.58l42.39,12.11L97.15,210H70.34A2,2,0,0,1,68.39,208.46Zm119.22,0a2,2,0,0,1-2,1.54H158.85l14.58-109.31,42.39-12.11Z\"/>","game-controller:light":"<path d=\"M176,110H152a6,6,0,0,1,0-12h24a6,6,0,0,1,0,12ZM104,98H94V88a6,6,0,0,0-12,0V98H72a6,6,0,0,0,0,12H82v10a6,6,0,0,0,12,0V110h10a6,6,0,0,0,0-12ZM239.84,199.5A34,34,0,0,1,212,214,34.11,34.11,0,0,1,188,204.05l-.26-.28L147.38,158H108.62L68.31,203.76,68,204A34,34,0,0,1,44,214a34,34,0,0,1-33.46-39.91s0-.06,0-.1L26.9,89.88A57.89,57.89,0,0,1,83.89,42H172a58.07,58.07,0,0,1,57.05,47.63c0,.07,0,.12,0,.19L245.46,174s0,.07,0,.11A33.75,33.75,0,0,1,239.84,199.5ZM172,146a46,46,0,0,0,0-92H83.89A45.9,45.9,0,0,0,38.71,92a.36.36,0,0,0,0,.1L22.33,176.23a22,22,0,0,0,37.11,19.45l42-47.65a6,6,0,0,1,4.5-2Zm61.67,30.23-9.79-50.35A58.06,58.06,0,0,1,172,158h-8.63l33.19,37.68a22,22,0,0,0,37.11-19.45Z\"/>","music-notes:light":"<path d=\"M211.69,19.27a6,6,0,0,0-5.15-1.09l-128,32A6,6,0,0,0,74,56V170.11A34,34,0,1,0,86,196V108.68l116-29v58.43A34,34,0,1,0,214,164V24A6,6,0,0,0,211.69,19.27ZM52,218a22,22,0,1,1,22-22A22,22,0,0,1,52,218ZM86,96.32V60.68l116-29V67.32ZM180,186a22,22,0,1,1,22-22A22,22,0,0,1,180,186Z\"/>","briefcase:duotone":"<path d=\"M224,118.31V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V118.31h0A191.14,191.14,0,0,0,128,144,191.08,191.08,0,0,0,224,118.31Z\" opacity=\"0.2\"/><path d=\"M104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112ZM232,72V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V72A16,16,0,0,1,40,56H80V48a24,24,0,0,1,24-24h48a24,24,0,0,1,24,24v8h40A16,16,0,0,1,232,72ZM96,56h64V48a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8ZM40,72v41.62A184.07,184.07,0,0,0,128,136a184,184,0,0,0,88-22.39V72ZM216,200V131.63A200.25,200.25,0,0,1,128,152a200.19,200.19,0,0,1-88-20.36V200H216Z\"/>","briefcase:duothin":"<path d=\"M224,118.31V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V118.31h0A191.14,191.14,0,0,0,128,144,191.08,191.08,0,0,0,224,118.31Z\" opacity=\"0.2\"/><path d=\"M108,112a4,4,0,0,1,4-4h32a4,4,0,0,1,0,8H112A4,4,0,0,1,108,112ZM228,72V200a12,12,0,0,1-12,12H40a12,12,0,0,1-12-12V72A12,12,0,0,1,40,60H84V48a20,20,0,0,1,20-20h48a20,20,0,0,1,20,20V60h44A12,12,0,0,1,228,72ZM92,60h72V48a12,12,0,0,0-12-12H104A12,12,0,0,0,92,48ZM36,72v44a188,188,0,0,0,92,24,188,188,0,0,0,92-24V72a4,4,0,0,0-4-4H40A4,4,0,0,0,36,72ZM220,200V125.1A196.06,196.06,0,0,1,128,148a196,196,0,0,1-92-22.9V200a4,4,0,0,0,4,4H216A4,4,0,0,0,220,200Z\"/>","chart-line-up:light":"<path d=\"M230,208a6,6,0,0,1-6,6H32a6,6,0,0,1-6-6V48a6,6,0,0,1,12,0V161.52l53.76-53.76a6,6,0,0,1,8.48,0L128,135.51,185.52,78H160a6,6,0,0,1,0-12h40a6,6,0,0,1,6,6v40a6,6,0,0,1-12,0V86.48l-61.76,61.76a6,6,0,0,1-8.48,0L96,120.49l-58,58V202H224A6,6,0,0,1,230,208Z\"/>","handshake:light":"<path d=\"M252.51,108.8,227,57.75a14,14,0,0,0-18.78-6.27L182.66,64.26,129.53,50.2a6.1,6.1,0,0,0-3.06,0L73.34,64.26,47.79,51.48A14,14,0,0,0,29,57.75L3.49,108.8a14,14,0,0,0,6.26,18.78L36.9,141.16l55.61,39.72a6,6,0,0,0,2,.94l64,16A6.08,6.08,0,0,0,160,198a6,6,0,0,0,4.24-1.76l55.31-55.31,26.7-13.35a14,14,0,0,0,6.26-18.78Zm-53,35.16-35.8-28.68a6,6,0,0,0-8,.45c-18.65,18.79-39.5,16.42-52.79,7.92a2,2,0,0,1-.94-1.5,1.9,1.9,0,0,1,.51-1.55L146.43,78h33.86l28.41,56.82ZM14.11,115.69a2,2,0,0,1,.11-1.52L39.74,63.11a2,2,0,0,1,1.8-1.1,2,2,0,0,1,.89.21l22.21,11.1L37.32,128l-22.21-11.1A2,2,0,0,1,14.11,115.69Zm144.05,69.67-59.6-14.9L47.66,134.1,76.84,75.75,128,62.21l14.8,3.92a5.92,5.92,0,0,0-3,1.57L94.1,112.05a14,14,0,0,0,2.39,21.72c20.22,12.92,44.75,10.49,63.8-5.89L191,152.5Zm83.73-69.67a2,2,0,0,1-1,1.16L218.68,128,191.36,73.32l22.21-11.1a2,2,0,0,1,1.53-.11,2,2,0,0,1,1.16,1l25.52,51.06A2,2,0,0,1,241.89,115.69Zm-112,101.76a6,6,0,0,1-7.27,4.37L80.89,211.39a5.88,5.88,0,0,1-2-.94L52.52,191.64a6,6,0,1,1,7-9.77L84.91,200l40.61,10.15A6,6,0,0,1,129.88,217.45Z\"/>","coins:light":"<path d=\"M224.56,103.81C213.43,97.75,198.47,93.39,182,91.34V84c0-12.12-9.58-23.1-27-30.93C139.16,45.93,118.2,42,96,42S52.84,45.93,37,53.07C19.58,60.9,10,71.88,10,84v40c0,12.12,9.58,23.1,27,30.93,10.49,4.72,23.21,8,37,9.73V172c0,12.12,9.58,23.1,27,30.93C116.84,210.07,137.8,214,160,214s43.16-3.93,59-11.07c17.39-7.83,27-18.81,27-30.93V132C246,121.35,238.39,111.34,224.56,103.81Zm-5.74,10.54C228.61,119.68,234,126,234,132c0,14.19-30.39,30-74,30a166.9,166.9,0,0,1-21.21-1.34A110.79,110.79,0,0,0,155,154.93c17.39-7.83,27-18.81,27-30.93V103.43C196.4,105.36,209.3,109.16,218.82,114.35ZM108.16,153.58c-3.92.27-8,.42-12.16.42-5.3,0-10.4-.24-15.28-.67a2.22,2.22,0,0,0-.37,0c-3.58-.33-7-.77-10.35-1.3V124.12A178,178,0,0,0,96,126a178,178,0,0,0,26-1.88V152c-4.34.69-8.91,1.22-13.69,1.56ZM170,105.89V124c0,9.54-13.75,19.8-36,25.51V121.85a115,115,0,0,0,21-6.92A66.2,66.2,0,0,0,170,105.89ZM96,54c43.61,0,74,15.81,74,30s-30.39,30-74,30S22,98.19,22,84,52.39,54,96,54ZM22,124V105.89a66.2,66.2,0,0,0,15,9,115,115,0,0,0,21,6.92v27.66C35.75,143.8,22,133.54,22,124Zm64,48v-6.28c3.3.18,6.63.28,10,.28q5.91,0,11.66-.37A123.17,123.17,0,0,0,122,169.84v27.67C99.75,191.8,86,181.54,86,172Zm48,28V172.1a177.84,177.84,0,0,0,26,1.9,178,178,0,0,0,26-1.88V200a170,170,0,0,1-52,0Zm64-2.49V169.85a115,115,0,0,0,21-6.92,66.2,66.2,0,0,0,15-9V172C234,181.54,220.25,191.8,198,197.51Z\"/>","factory:duotone":"<path d=\"M216,136v80H40V88l64,48V88l64,48Z\" opacity=\"0.2\"/><path d=\"M116,176a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h28A8,8,0,0,1,116,176Zm60-8H148a8,8,0,0,0,0,16h28a8,8,0,0,0,0-16Zm64,48a8,8,0,0,1-8,8H24a8,8,0,0,1,0-16h8V88a8,8,0,0,1,12.8-6.4L96,120V88a8,8,0,0,1,12.8-6.4l38.74,29.05L159.1,29.74A16.08,16.08,0,0,1,174.94,16h18.12A16.08,16.08,0,0,1,208.9,29.74l15,105.13s.08.78.08,1.13v72h8A8,8,0,0,1,240,216Zm-77.86-94.4,8.53,6.4h36.11L193.06,32H174.94ZM48,208H208V144H168a8,8,0,0,1-4.8-1.6l-14.4-10.8,0,0L112,104v32a8,8,0,0,1-12.8,6.4L48,104Z\"/>","factory:duothin":"<path d=\"M216,136v80H40V88l64,48V88l64,48Z\" opacity=\"0.2\"/><path d=\"M112,176a4,4,0,0,1-4,4H80a4,4,0,0,1,0-8h28A4,4,0,0,1,112,176Zm64-4H148a4,4,0,0,0,0,8h28a4,4,0,0,0,0-8Zm60,44a4,4,0,0,1-4,4H24a4,4,0,0,1,0-8H36V88a4,4,0,0,1,6.4-3.2L100,128V88a4,4,0,0,1,6.4-3.2l44.14,33.11L163.06,30.3A12.06,12.06,0,0,1,174.94,20h18.12a12.06,12.06,0,0,1,11.88,10.3l15,105.13a3.64,3.64,0,0,1,0,.57v76h12A4,4,0,0,1,236,216Zm-78.16-92.62L169.33,132h42.06L197,31.43a4,4,0,0,0-4-3.43H174.94a4,4,0,0,0-4,3.43ZM44,212H212V140H168a4,4,0,0,1-2.4-.8L108,96v40a4,4,0,0,1-6.4,3.2L44,96Z\"/>","gear-six:light":"<path d=\"M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162Zm108-54.4a6,6,0,0,0-2.92-4L202.64,86.22l-.42-.71L202.1,51.2A6,6,0,0,0,200,46.64a110.12,110.12,0,0,0-36.07-20.31,6,6,0,0,0-4.84.45L128.46,43.86h-1L96.91,26.76a6,6,0,0,0-4.86-.44A109.92,109.92,0,0,0,56,46.68a6,6,0,0,0-2.12,4.55l-.16,34.34c-.14.23-.28.47-.41.71L22.91,103.57A6,6,0,0,0,20,107.62a104.81,104.81,0,0,0,0,40.78,6,6,0,0,0,2.92,4l30.42,17.33.42.71.12,34.31A6,6,0,0,0,56,209.36a110.12,110.12,0,0,0,36.07,20.31,6,6,0,0,0,4.84-.45l30.61-17.08h1l30.56,17.1A6.09,6.09,0,0,0,162,230a5.83,5.83,0,0,0,1.93-.32,109.92,109.92,0,0,0,36-20.36,6,6,0,0,0,2.12-4.55l.16-34.34c.14-.23.28-.47.41-.71l30.42-17.29a6,6,0,0,0,2.92-4.05A104.81,104.81,0,0,0,236,107.6Zm-11.25,35.79L195.32,160.1a6.07,6.07,0,0,0-2.28,2.3c-.59,1-1.21,2.11-1.86,3.14a6,6,0,0,0-.91,3.16l-.16,33.21a98.15,98.15,0,0,1-27.52,15.53L133,200.88a6,6,0,0,0-2.93-.77h-.14c-1.24,0-2.5,0-3.74,0a6,6,0,0,0-3.07.76L93.45,217.43a98,98,0,0,1-27.56-15.49l-.12-33.17a6,6,0,0,0-.91-3.16c-.64-1-1.27-2.08-1.86-3.14a6,6,0,0,0-2.27-2.3L31.3,143.4a93,93,0,0,1,0-30.79L60.68,95.9A6.07,6.07,0,0,0,63,93.6c.59-1,1.21-2.11,1.86-3.14a6,6,0,0,0,.91-3.16l.16-33.21A98.15,98.15,0,0,1,93.41,38.56L123,55.12a5.81,5.81,0,0,0,3.07.76c1.24,0,2.5,0,3.74,0a6,6,0,0,0,3.07-.76l29.65-16.56a98,98,0,0,1,27.56,15.49l.12,33.17a6,6,0,0,0,.91,3.16c.64,1,1.27,2.08,1.86,3.14a6,6,0,0,0,2.27,2.3L224.7,112.6A93,93,0,0,1,224.73,143.39Z\"/>","wrench:light":"<path d=\"M224.91,69.75a6,6,0,0,0-9.63-2.16l-41.07,37.9L154.7,101.3l-4.19-19.51,37.9-41.07a6,6,0,0,0-2.16-9.63,70,70,0,0,0-89.77,94.39l-61.39,53c-.11.09-.21.19-.32.3A30,30,0,0,0,77.2,221.23c.11-.11.21-.21.3-.32l53-61.39a70,70,0,0,0,94.39-89.77ZM160,154a58,58,0,0,1-28-7.22,6,6,0,0,0-7.45,1.33L68.57,212.88a18,18,0,0,1-25.45-25.45l64.76-55.94A6,6,0,0,0,109.2,124a58,58,0,0,1,64-84.53L139.58,75.93a6,6,0,0,0-1.45,5.33l5.65,26.35a6,6,0,0,0,4.61,4.61l26.35,5.65a6,6,0,0,0,5.33-1.45L216.49,82.8A58.06,58.06,0,0,1,160,154Z\"/>","hard-hat:light":"<path d=\"M224,154h-2V136a94.37,94.37,0,0,0-64-89.1V40a14,14,0,0,0-14-14H112A14,14,0,0,0,98,40v6.9A94.37,94.37,0,0,0,34,136v18H32a14,14,0,0,0-14,14v24a14,14,0,0,0,14,14H224a14,14,0,0,0,14-14V168A14,14,0,0,0,224,154Zm-14-18v18H158V59.68A82.33,82.33,0,0,1,210,136ZM112,38h32a2,2,0,0,1,2,2V154H110V40A2,2,0,0,1,112,38ZM46,136A82.33,82.33,0,0,1,98,59.68V154H46Zm180,56a2,2,0,0,1-2,2H32a2,2,0,0,1-2-2V168a2,2,0,0,1,2-2H224a2,2,0,0,1,2,2Z\"/>","heartbeat:duotone":"<path d=\"M232,102c0,66-104,122-104,122S24,168,24,102A54,54,0,0,1,78,48c22.59,0,41.94,12.31,50,32,8.06-19.69,27.41-32,50-32A54,54,0,0,1,232,102Z\" opacity=\"0.2\"/><path d=\"M72,144H32a8,8,0,0,1,0-16H67.72l13.62-20.44a8,8,0,0,1,13.32,0l25.34,38,9.34-14A8,8,0,0,1,136,128h24a8,8,0,0,1,0,16H140.28l-13.62,20.44a8,8,0,0,1-13.32,0L88,126.42l-9.34,14A8,8,0,0,1,72,144ZM178,40c-20.65,0-38.73,8.88-50,23.89C116.73,48.88,98.65,40,78,40a62.07,62.07,0,0,0-62,62c0,.75,0,1.5,0,2.25a8,8,0,1,0,16-.5c0-.58,0-1.17,0-1.75A46.06,46.06,0,0,1,78,56c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46c0,53.61-77.76,102.15-96,112.8-10.83-6.31-42.63-26-66.68-52.21a8,8,0,1,0-11.8,10.82c31.17,34,72.93,56.68,74.69,57.63a8,8,0,0,0,7.58,0C136.21,228.66,240,172,240,102A62.07,62.07,0,0,0,178,40Z\"/>","heartbeat:duothin":"<path d=\"M232,102c0,66-104,122-104,122S24,168,24,102A54,54,0,0,1,78,48c22.59,0,41.94,12.31,50,32,8.06-19.69,27.41-32,50-32A54,54,0,0,1,232,102Z\" opacity=\"0.2\"/><path d=\"M72,140H32a4,4,0,0,1,0-8H69.86l14.81-22.22a4,4,0,0,1,6.66,0l28.67,43,12.67-19A4,4,0,0,1,136,132h24a4,4,0,0,1,0,8H138.14l-14.81,22.22a4,4,0,0,1-6.66,0L88,119.21l-12.67,19A4,4,0,0,1,72,140ZM178,44c-21.44,0-39.92,10.19-50,27.07C117.92,54.19,99.44,44,78,44a58.07,58.07,0,0,0-58,58q0,1.06,0,2.13a4,4,0,1,0,8-.26c0-.62,0-1.24,0-1.87A50.06,50.06,0,0,1,78,52c21.11,0,38.85,11.31,46.3,29.51a4,4,0,0,0,7.4,0C139.15,63.31,156.89,52,178,52a50.06,50.06,0,0,1,50,50c0,58-86,109.46-100,117.42-8.47-4.82-43.5-25.61-69.63-54.12a4,4,0,0,0-5.9,5.4c30.72,33.52,71.9,55.89,73.63,56.82a4,4,0,0,0,3.8,0,333.81,333.81,0,0,0,52.7-36.73C218,160.47,236,130.59,236,102A58.07,58.07,0,0,0,178,44Z\"/>","stethoscope:light":"<path d=\"M218,160a10,10,0,1,1-10-10A10,10,0,0,1,218,160Zm-4.35,37.58A46.05,46.05,0,0,1,168,238H144a46.06,46.06,0,0,1-46-46V149.71A62,62,0,0,1,42,88V40a6,6,0,0,1,6-6H72a6,6,0,0,1,0,12H54V88a50,50,0,0,0,50,50h.67c27.2-.36,49.33-23.16,49.33-50.83V46H136a6,6,0,0,1,0-12h24a6,6,0,0,1,6,6V87.17c0,32.43-24.68,59.44-56,62.52V192a34,34,0,0,0,34,34h24a34.05,34.05,0,0,0,33.56-28.56,38,38,0,1,1,12.09.14ZM234,160a26,26,0,1,0-26,26A26,26,0,0,0,234,160Z\"/>","first-aid:light":"<path d=\"M216,90H166V40a14,14,0,0,0-14-14H104A14,14,0,0,0,90,40V90H40a14,14,0,0,0-14,14v48a14,14,0,0,0,14,14H90v50a14,14,0,0,0,14,14h48a14,14,0,0,0,14-14V166h50a14,14,0,0,0,14-14V104A14,14,0,0,0,216,90Zm2,62a2,2,0,0,1-2,2H160a6,6,0,0,0-6,6v56a2,2,0,0,1-2,2H104a2,2,0,0,1-2-2V160a6,6,0,0,0-6-6H40a2,2,0,0,1-2-2V104a2,2,0,0,1,2-2H96a6,6,0,0,0,6-6V40a2,2,0,0,1,2-2h48a2,2,0,0,1,2,2V96a6,6,0,0,0,6,6h56a2,2,0,0,1,2,2Z\"/>","pill:light":"<path d=\"M215,41a51.28,51.28,0,0,0-72.5,0L41,142.5A51.26,51.26,0,0,0,113.49,215L215,113.5A51.31,51.31,0,0,0,215,41ZM105,206.5A39.26,39.26,0,0,1,49.48,151L96,104.49,151.52,160ZM206.52,105,160,151.51,104.48,96,151,49.5A39.26,39.26,0,0,1,206.52,105ZM188.26,83.76a6,6,0,0,1,0,8.48l-24,24a6,6,0,0,1-8.49-8.48l24-24A6,6,0,0,1,188.26,83.76Z\"/>","chats-circle:duotone":"<path d=\"M231.66,213.73a8,8,0,0,1-9.93,9.93L194,215.5A72.05,72.05,0,0,1,92.06,175.89h0c1.31.07,2.62.11,3.94.11a72,72,0,0,0,67.93-95.88h0A72,72,0,0,1,223.5,186Z\" opacity=\"0.2\"/><path d=\"M232.07,186.76a80,80,0,0,0-62.5-114.17A80,80,0,1,0,23.93,138.76l-7.27,24.71a16,16,0,0,0,19.87,19.87l24.71-7.27a80.39,80.39,0,0,0,25.18,7.35,80,80,0,0,0,108.34,40.65l24.71,7.27a16,16,0,0,0,19.87-19.86ZM62,159.5a8.28,8.28,0,0,0-2.26.32L32,168l8.17-27.76a8,8,0,0,0-.63-6,64,64,0,1,1,26.26,26.26A8,8,0,0,0,62,159.5Zm153.79,28.73L224,216l-27.76-8.17a8,8,0,0,0-6,.63,64.05,64.05,0,0,1-85.87-24.88A79.93,79.93,0,0,0,174.7,89.71a64,64,0,0,1,41.75,92.48A8,8,0,0,0,215.82,188.23Z\"/>","chats-circle:duothin":"<path d=\"M231.66,213.73a8,8,0,0,1-9.93,9.93L194,215.5A72.05,72.05,0,0,1,92.06,175.89h0c1.31.07,2.62.11,3.94.11a72,72,0,0,0,67.93-95.88h0A72,72,0,0,1,223.5,186Z\" opacity=\"0.2\"/><path d=\"M227.79,186.39a76,76,0,0,0-61-110.07A76,76,0,1,0,28.21,138.39L20.5,164.6a12,12,0,0,0,14.9,14.9l26.21-7.71a75.93,75.93,0,0,0,27.6,7.9,76,76,0,0,0,105.18,40.1l26.21,7.71a12,12,0,0,0,14.9-14.9ZM60.9,163.66l-27.76,8.17a4,4,0,0,1-5-5l8.17-27.76a4.07,4.07,0,0,0-.31-3A68,68,0,1,1,63.92,164,4.06,4.06,0,0,0,60.9,163.66Zm165.92,55.16a4,4,0,0,1-4,1l-27.76-8.17a4.07,4.07,0,0,0-3,.31A68,68,0,0,1,98,180a76,76,0,0,0,71.5-95.28A68,68,0,0,1,220,184.08a4.07,4.07,0,0,0-.31,3l8.17,27.76A4,4,0,0,1,226.82,218.82Z\"/>","thumbs-up:light":"<path d=\"M232.49,81.44A22,22,0,0,0,216,74H158V56a38,38,0,0,0-38-38,6,6,0,0,0-5.37,3.32L76.29,98H32a14,14,0,0,0-14,14v88a14,14,0,0,0,14,14H204a22,22,0,0,0,21.83-19.27l12-96A22,22,0,0,0,232.49,81.44ZM30,200V112a2,2,0,0,1,2-2H74v92H32A2,2,0,0,1,30,200ZM225.92,97.24l-12,96A10,10,0,0,1,204,202H86V105.42l37.58-75.17A26,26,0,0,1,146,56V80a6,6,0,0,0,6,6h64a10,10,0,0,1,9.92,11.24Z\"/>","share-network:light":"<path d=\"M176,162a37.91,37.91,0,0,0-28.3,12.67L98.8,143.24a37.89,37.89,0,0,0,0-30.48l48.9-31.43a38,38,0,1,0-6.5-10.09L92.3,102.67a38,38,0,1,0,0,50.66l48.9,31.43A38,38,0,1,0,176,162Zm0-132a26,26,0,1,1-26,26A26,26,0,0,1,176,30ZM64,154a26,26,0,1,1,26-26A26,26,0,0,1,64,154Zm112,72a26,26,0,1,1,26-26A26,26,0,0,1,176,226Z\"/>","hash:light":"<path d=\"M224,90H173l8.89-48.93a6,6,0,1,0-11.8-2.14L160.81,90H109l8.89-48.93a6,6,0,0,0-11.8-2.14L96.81,90H48a6,6,0,0,0,0,12H94.63l-9.46,52H32a6,6,0,0,0,0,12H83L74.1,214.93a6,6,0,0,0,4.83,7A5.64,5.64,0,0,0,80,222a6,6,0,0,0,5.89-4.93L95.19,166H147l-8.89,48.93a6,6,0,0,0,4.83,7,5.64,5.64,0,0,0,1.08.1,6,6,0,0,0,5.89-4.93L159.19,166H208a6,6,0,0,0,0-12H161.37l9.46-52H224a6,6,0,0,0,0-12Zm-74.83,64H97.37l9.46-52h51.8Z\"/>","soccer-ball:duotone":"<path d=\"M65.17,108.08l-33,25.34c-.1-1.8-.15-3.6-.15-5.42A95.61,95.61,0,0,1,53.23,67.78ZM46.92,179.42a96.12,96.12,0,0,0,57,41.52l-14.7-41.52Zm105.21,41.52a96.12,96.12,0,0,0,57-41.52H166.83ZM202.77,67.78l-11.94,40.3,33,25.34c.1-1.8.15-3.6.15-5.42A95.61,95.61,0,0,0,202.77,67.78Zm-38.52-28.7a96.34,96.34,0,0,0-72.5,0L128,64ZM152.72,160,168,115.5,128,88,88,115.5,103.28,160Z\" opacity=\"0.2\"/><path d=\"M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm76.52,147.42H170.9l-9.26-12.76,12.63-36.78,15-4.89,26.24,20.13A87.38,87.38,0,0,1,204.52,171.42Zm-164-34.3L66.71,117l15,4.89,12.63,36.78L85.1,171.42H51.48A87.38,87.38,0,0,1,40.47,137.12Zm10-50.64,5.51,18.6L40.71,116.77A87.33,87.33,0,0,1,50.43,86.48ZM109,152,97.54,118.65,128,97.71l30.46,20.94L147,152Zm91.07-46.92,5.51-18.6a87.33,87.33,0,0,1,9.72,30.29Zm-6.2-35.38-9.51,32.08-15.07,4.89L136,83.79V68.21l29.09-20A88.58,88.58,0,0,1,193.86,69.7ZM146.07,41.87,128,54.29,109.93,41.87a88.24,88.24,0,0,1,36.14,0ZM90.91,48.21l29.09,20V83.79L86.72,106.67l-15.07-4.89L62.14,69.7A88.58,88.58,0,0,1,90.91,48.21ZM63.15,187.42H83.52l7.17,20.27A88.4,88.4,0,0,1,63.15,187.42ZM110,214.13,98.12,180.71,107.35,168h41.3l9.23,12.71-11.83,33.42a88,88,0,0,1-36.1,0Zm55.36-6.44,7.17-20.27h20.37A88.4,88.4,0,0,1,165.31,207.69Z\"/>","soccer-ball:duothin":"<path d=\"M65.17,108.08l-33,25.34c-.1-1.8-.15-3.6-.15-5.42A95.61,95.61,0,0,1,53.23,67.78ZM46.92,179.42a96.12,96.12,0,0,0,57,41.52l-14.7-41.52Zm105.21,41.52a96.12,96.12,0,0,0,57-41.52H166.83ZM202.77,67.78l-11.94,40.3,33,25.34c.1-1.8.15-3.6.15-5.42A95.61,95.61,0,0,0,202.77,67.78Zm-38.52-28.7a96.34,96.34,0,0,0-72.5,0L128,64ZM152.72,160,168,115.5,128,88,88,115.5,103.28,160Z\" opacity=\"0.2\"/><path d=\"M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm40.87,147.42-11.69-16.09,13.95-40.64,18.93-6.15,29.65,22.74a91.32,91.32,0,0,1-12.9,40.14Zm-81.74,0H49.19a91.32,91.32,0,0,1-12.9-40.14l29.65-22.74,18.93,6.15,13.95,40.64ZM51.69,76.66l8.87,29.92L36,125.39A91.41,91.41,0,0,1,51.69,76.66ZM106.13,156,92.77,117.08,128,92.85l35.23,24.23L149.87,156Zm89.31-49.42,8.87-29.92A91.41,91.41,0,0,1,220,125.39Zm2.87-37.84-10.72,36.19-19,6.16L132,85.9V66.1l32.68-22.46A92.44,92.44,0,0,1,198.31,68.74ZM155.54,40.21,128,59.15,100.46,40.21a92.18,92.18,0,0,1,55.08,0ZM91.32,43.64,124,66.1V85.9L87.36,111.09l-19-6.16L57.69,68.74A92.44,92.44,0,0,1,91.32,43.64ZM54.61,183.42H86.34l11.1,31.36A92.46,92.46,0,0,1,54.61,183.42Zm52.3,34.14-13.27-37.5L105.32,164h45.36l11.68,16.06-13.27,37.5a92.37,92.37,0,0,1-42.18,0Zm51.65-2.78,11.1-31.36h31.73A92.46,92.46,0,0,1,158.56,214.78Z\"/>","basketball:light":"<path d=\"M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26ZM60,69.09A89.23,89.23,0,0,1,81.78,122H38.2A89.65,89.65,0,0,1,60,69.09ZM38.2,134H81.78A89.23,89.23,0,0,1,60,186.91,89.65,89.65,0,0,1,38.2,134ZM122,217.8a89.66,89.66,0,0,1-53.5-22.34A101.18,101.18,0,0,0,93.82,134H122Zm0-95.8H93.82A101.18,101.18,0,0,0,68.5,60.54,89.66,89.66,0,0,1,122,38.2Zm95.8,0H174.22A89.23,89.23,0,0,1,196,69.09,89.65,89.65,0,0,1,217.8,122ZM134,38.2a89.66,89.66,0,0,1,53.5,22.34A101.18,101.18,0,0,0,162.18,122H134Zm0,179.6V134h28.18a101.18,101.18,0,0,0,25.32,61.46A89.66,89.66,0,0,1,134,217.8Zm62-30.89A89.23,89.23,0,0,1,174.22,134H217.8A89.65,89.65,0,0,1,196,186.91Z\"/>","trophy:light":"<path d=\"M232,66H206V48a6,6,0,0,0-6-6H56a6,6,0,0,0-6,6V66H24A14,14,0,0,0,10,80V96a38,38,0,0,0,38,38h5.14A78,78,0,0,0,122,189.75V218H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V189.75c32.44-2.52,59.43-25.3,68.62-55.75H208a38,38,0,0,0,38-38V80A14,14,0,0,0,232,66ZM48,122A26,26,0,0,1,22,96V80a2,2,0,0,1,2-2H50v34a80.87,80.87,0,0,0,.65,10Zm146-10.9c0,36.62-29.38,66.63-65.5,66.9A66,66,0,0,1,62,112V54H194ZM234,96a26,26,0,0,1-26,26h-2.77a78.45,78.45,0,0,0,.77-10.9V78h26a2,2,0,0,1,2,2Z\"/>","medal:light":"<path d=\"M214,96A86,86,0,1,0,74,162.87V240a6,6,0,0,0,2.85,5.1A5.93,5.93,0,0,0,80,246a6,6,0,0,0,2.68-.63L128,222.71l45.33,22.66A6,6,0,0,0,182,240V162.87A85.87,85.87,0,0,0,214,96ZM54,96a74,74,0,1,1,74,74A74.09,74.09,0,0,1,54,96ZM170,230.29l-39.33-19.66a6,6,0,0,0-5.36,0L86,230.29V171a85.75,85.75,0,0,0,84,0ZM128,150A54,54,0,1,0,74,96,54.06,54.06,0,0,0,128,150Zm0-96A42,42,0,1,1,86,96,42,42,0,0,1,128,54Z\"/>","grains:duotone":"<path d=\"M208,64v56a80,80,0,0,0-80,80,80,80,0,0,0-80-80V64a79.67,79.67,0,0,1,36.05,8.59v0C95.62,40.19,128,24,128,24S160.39,40.19,172,72.58h0A79.6,79.6,0,0,1,208,64Z\" opacity=\"0.2\"/><path d=\"M208,56a87.53,87.53,0,0,0-31.85,6c-14.32-29.7-43.25-44.46-44.57-45.13a8,8,0,0,0-7.16,0c-1.33.67-30.25,15.43-44.57,45.13A87.53,87.53,0,0,0,48,56a8,8,0,0,0-8,8v80a88,88,0,0,0,176,0V64A8,8,0,0,0,208,56ZM120,215.56A72.1,72.1,0,0,1,56,144V128.44A72.1,72.1,0,0,1,120,200Zm0-66.1a88,88,0,0,0-64-37.09V72.44A72.1,72.1,0,0,1,120,144ZM94.15,69.11C103.37,49.89,120.58,37.76,128,33.2c7.44,4.54,24.6,16.6,33.84,35.91A88.51,88.51,0,0,0,128,107.36,88.51,88.51,0,0,0,94.15,69.11ZM200,144a72.1,72.1,0,0,1-64,71.56V200a72.1,72.1,0,0,1,64-71.56Zm0-31.63a88,88,0,0,0-64,37.09V144a72.1,72.1,0,0,1,64-71.56Z\"/>","grains:duothin":"<path d=\"M208,64v56a80,80,0,0,0-80,80,80,80,0,0,0-80-80V64a79.67,79.67,0,0,1,36.05,8.59v0C95.62,40.19,128,24,128,24S160.39,40.19,172,72.58h0A79.6,79.6,0,0,1,208,64Z\" opacity=\"0.2\"/><path d=\"M208,60a83.5,83.5,0,0,0-33.88,7.16c-13-30.78-43-46.08-44.33-46.74a4,4,0,0,0-3.58,0c-1.32.66-31.3,16-44.33,46.74A83.5,83.5,0,0,0,48,60a4,4,0,0,0-4,4v80a84,84,0,0,0,168,0V64A4,4,0,0,0,208,60ZM124,219.9A76.11,76.11,0,0,1,52,144V124.1A76.11,76.11,0,0,1,124,200Zm0-55.63A84.12,84.12,0,0,0,52,116.1v-48A76.11,76.11,0,0,1,124,144ZM89.05,70.75c10.07-24.22,32.46-38.47,39-42.19,6.49,3.72,28.88,18,38.95,42.19A84.43,84.43,0,0,0,128,118.41,84.43,84.43,0,0,0,89.05,70.75ZM204,144a76.11,76.11,0,0,1-72,75.9V200a76.11,76.11,0,0,1,72-75.9Zm0-27.9a84.12,84.12,0,0,0-72,48.17V144a76.11,76.11,0,0,1,72-75.9Z\"/>","tractor:light":"<path d=\"M238,166.12V134a13.91,13.91,0,0,0-10-13.41l-.15,0L190,110.24V72a6,6,0,0,0-12,0v35l-28-7.58V54h10a6,6,0,0,0,0-12H40a6,6,0,0,0,0,12H50V90H40a6,6,0,0,0,0,12H68a70.08,70.08,0,0,1,70,70v12a6,6,0,0,0,6,6h34.06A34,34,0,1,0,238,166.12ZM68,90H62V54h76v75.34A82,82,0,0,0,68,90Zm82,82V111.84l74.63,20.21A2,2,0,0,1,226,134V157a34,34,0,0,0-46.5,21H150Zm62,38a22,22,0,1,1,22-22A22,22,0,0,1,212,210ZM68,122a50,50,0,1,0,50,50A50.06,50.06,0,0,0,68,122Zm0,88a38,38,0,1,1,38-38A38,38,0,0,1,68,210Zm10-38a10,10,0,1,1-10-10A10,10,0,0,1,78,172Z\"/>","tree-palm:light":"<path d=\"M236.35,54.61a64.87,64.87,0,0,0-94.85,0A70,70,0,0,0,128,75a70,70,0,0,0-13.5-20.37,64.87,64.87,0,0,0-94.85,0,6,6,0,0,0,2,9.64l61.83,26.9c-1.85.34-3.7.74-5.54,1.23a69.42,69.42,0,0,0-42.5,32.39,68.65,68.65,0,0,0-7,52.79,6,6,0,0,0,3.86,4.12,6.1,6.1,0,0,0,1.93.32,6,6,0,0,0,3.64-1.23L122,116.64V224a6,6,0,0,0,12,0V116.64l84.17,64.13a6,6,0,0,0,3.64,1.23,6.1,6.1,0,0,0,1.93-.32,6,6,0,0,0,3.86-4.12,68.65,68.65,0,0,0-7-52.79,69.42,69.42,0,0,0-42.5-32.39c-1.84-.49-3.69-.89-5.54-1.23l61.83-26.9a6,6,0,0,0,2-9.64ZM67.08,46a53.16,53.16,0,0,1,38.73,16.88,58.77,58.77,0,0,1,15.47,31.65L34.93,57A52.59,52.59,0,0,1,67.08,46ZM38.29,165.33a56.77,56.77,0,0,1,7.48-34.53A57.58,57.58,0,0,1,81,104a58.79,58.79,0,0,1,15.12-2,57.67,57.67,0,0,1,20.43,3.73ZM210.23,130.8a56.77,56.77,0,0,1,7.48,34.53l-78.24-59.61a58.24,58.24,0,0,1,70.76,25.08ZM134.72,94.53a58.77,58.77,0,0,1,15.47-31.65A53.16,53.16,0,0,1,188.92,46a52.59,52.59,0,0,1,32.15,11Z\"/>","carrot:light":"<path d=\"M232,66H198.48l29.76-29.76a6,6,0,1,0-8.48-8.48L190,57.52V24a6,6,0,0,0-12,0V60.15a62,62,0,0,0-77.8,8l0,0h0C60.17,107.4,30.05,201.45,27.38,210a14,14,0,0,0,18.67,18.67c8.5-2.67,102.62-32.81,141.79-72.77a62,62,0,0,0,8-77.84H232a6,6,0,0,0,0-12Zm-52.69,81.41C170,157,157,166,142.69,174.24l-26.46-26.47a6,6,0,1,0-8.49,8.49l24,24c-41.69,22-89,36.82-89.73,37a6.57,6.57,0,0,0-1.06.44,2,2,0,0,1-2.7-2.7A6.57,6.57,0,0,0,38.7,214C39,213,67.55,121.72,104.48,81l35.27,35.26a6,6,0,1,0,8.48-8.48l-35.1-35.1a50,50,0,0,1,66.18,74.74Z\"/>","mask-happy:duotone":"<path d=\"M216,48v55.77C216,174.6,176.6,232,128,232S40,174.6,40,103.79V48a8,8,0,0,1,10.89-7.47C66,46.41,95.11,55.71,128,55.71s62-9.3,77.11-15.16A8,8,0,0,1,216,48Z\" opacity=\"0.2\"/><path d=\"M217,34.8a15.94,15.94,0,0,0-14.82-1.71C188.15,38.55,159.82,47.71,128,47.71S67.84,38.55,53.79,33.09A16,16,0,0,0,32,48v55.77c0,35.84,9.65,69.65,27.18,95.18,18.16,26.46,42.6,41,68.82,41s50.66-14.57,68.82-41C214.35,173.44,224,139.63,224,103.79V48A16,16,0,0,0,217,34.8Zm-9,69c0,32.64-8.66,63.23-24.37,86.13C168.54,211.9,148.79,224,128,224s-40.54-12.1-55.63-34.08C56.66,167,48,136.43,48,103.79V48c15.11,5.87,45.58,15.71,80,15.71S192.9,53.87,208,48v55.81Zm-18,18.87A8,8,0,1,1,178,133.33c-2.68-3-8.85-5.33-14-5.33s-11.36,2.34-14,5.33A8,8,0,1,1,138,122.66c5.71-6.38,16.14-10.66,26-10.66S184.25,116.28,190,122.66ZM92,128c-5.19,0-11.36,2.34-14,5.33A8,8,0,1,1,66,122.66C71.75,116.28,82.18,112,92,112s20.25,4.28,26,10.66A8,8,0,1,1,106,133.33C103.36,130.34,97.19,128,92,128Zm76.45,45.19a52.9,52.9,0,0,1-80.9,0A8,8,0,1,1,99.72,162.8a36.89,36.89,0,0,0,56.56,0,8,8,0,0,1,12.17,10.39Z\"/>","mask-happy:duothin":"<path d=\"M216,48v55.77C216,174.6,176.6,232,128,232S40,174.6,40,103.79V48a8,8,0,0,1,10.89-7.47C66,46.41,95.11,55.71,128,55.71s62-9.3,77.11-15.16A8,8,0,0,1,216,48Z\" opacity=\"0.2\"/><path d=\"M187,125.33a4,4,0,1,1-6,5.33c-3.4-3.8-10.72-6.66-17-6.66s-13.62,2.86-17,6.66a4,4,0,0,1-3,1.34,4,4,0,0,1-3-6.67c4.92-5.5,14.37-9.33,23-9.33S182.06,119.83,187,125.33Zm-78,5.33a4,4,0,1,0,6-5.33c-4.92-5.5-14.37-9.33-23-9.33s-18.06,3.83-23,9.33A4,4,0,0,0,72,132a4,4,0,0,0,3-1.34c3.4-3.8,10.72-6.66,17-6.66S105.62,126.86,109,130.66Zm50.3,34.74a40.89,40.89,0,0,1-62.64,0,4,4,0,0,0-6.09,5.2,48.92,48.92,0,0,0,74.82,0,4,4,0,0,0-6.09-5.2ZM220,48v55.78c0,35-9.4,68-26.48,92.92C176.13,222.05,152.86,236,128,236s-48.13-13.95-65.52-39.29C45.4,171.83,36,138.83,36,103.79V48a12,12,0,0,1,16.34-11.2C66.66,42.38,95.53,51.7,128,51.7s61.34-9.32,75.66-14.88A12,12,0,0,1,220,48Zm-8,0a4,4,0,0,0-5.44-3.74C191.72,50,161.77,59.7,128,59.7S64.28,50,49.44,44.27A4.14,4.14,0,0,0,48,44a3.87,3.87,0,0,0-2.23.7A4,4,0,0,0,44,48v55.77C44,172.28,81.68,228,128,228s84-55.72,84-124.21Z\"/>","palette:light":"<path d=\"M199.37,55.31A101.32,101.32,0,0,0,128,26h-1A102,102,0,0,0,26,128c0,42.09,26.07,77.44,68,92.26A30.21,30.21,0,0,0,104.11,222,30.06,30.06,0,0,0,134,192a18,18,0,0,1,18-18h46.21a29.82,29.82,0,0,0,29.25-23.31A102.71,102.71,0,0,0,230,127.11,101.25,101.25,0,0,0,199.37,55.31ZM215.76,148a17.89,17.89,0,0,1-17.55,14H152a30,30,0,0,0-30,30,18,18,0,0,1-24,17C61,195.86,38,164.85,38,128a90,90,0,0,1,89.07-90H128a90.34,90.34,0,0,1,90,89.22A90.46,90.46,0,0,1,215.76,148ZM138,76a10,10,0,1,1-10-10A10,10,0,0,1,138,76ZM94,100A10,10,0,1,1,84,90,10,10,0,0,1,94,100Zm0,56a10,10,0,1,1-10-10A10,10,0,0,1,94,156Zm88-56a10,10,0,1,1-10-10A10,10,0,0,1,182,100Z\"/>","coffee:light":"<path d=\"M82,56V24a6,6,0,0,1,12,0V56a6,6,0,0,1-12,0Zm38,6a6,6,0,0,0,6-6V24a6,6,0,0,0-12,0V56A6,6,0,0,0,120,62Zm32,0a6,6,0,0,0,6-6V24a6,6,0,0,0-12,0V56A6,6,0,0,0,152,62Zm94,58v8a38,38,0,0,1-36.94,38,94.55,94.55,0,0,1-31.13,44H208a6,6,0,0,1,0,12H32a6,6,0,0,1,0-12H62.07A94.34,94.34,0,0,1,26,136V88a6,6,0,0,1,6-6H208A38,38,0,0,1,246,120Zm-44,16V94H38v42a82.27,82.27,0,0,0,46.67,74h70.66A82.27,82.27,0,0,0,202,136Zm32-16a26,26,0,0,0-20-25.29V136a93.18,93.18,0,0,1-1.69,17.64A26,26,0,0,0,234,128Z\"/>","globe-hemisphere-east:light":"<path d=\"M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,12a89.53,89.53,0,0,1,50,15.2V74a2,2,0,0,1-.48,1.31L155.35,101a2,2,0,0,1-1.25.68L122.63,106a2,2,0,0,1-1.44-.36l-.24-.16-19.7-12.89a14,14,0,0,0-19.71,3.64l-21,31.3a13.94,13.94,0,0,0-2.36,7.71L58,171.45a2,2,0,0,1-.9,1.66l-5,3.27A90,90,0,0,1,128,38ZM59.28,186.05l4.43-2.9A14,14,0,0,0,70,171.52l.21-36.23a2.05,2.05,0,0,1,.33-1.1l21-31.3a2,2,0,0,1,1.31-.86,2,2,0,0,1,1.52.35l.24.16,19.7,12.89a13.93,13.93,0,0,0,10,2.44l31.47-4.26a14,14,0,0,0,8.73-4.74l22.17-25.76A14,14,0,0,0,190,74V62.82a89.91,89.91,0,0,1,22.68,95.67l-18.4-16.82a14,14,0,0,0-14.82-2.6L149,151.73a14.11,14.11,0,0,0-8.48,10.89l-2.38,16.19a14,14,0,0,0,10.3,15.58L169.9,200a2.09,2.09,0,0,1,.91.53l4.18,4.18A89.86,89.86,0,0,1,59.28,186.05ZM184.9,197.68l-5.59-5.61a14,14,0,0,0-6.36-3.65l-21.46-5.63a2,2,0,0,1-1.47-2.23l2.39-16.19a2,2,0,0,1,1.21-1.56l30.45-12.66a2,2,0,0,1,2.12.37l21.36,19.54A90.79,90.79,0,0,1,184.9,197.68Z\"/>","book-open-text:duotone":"<path d=\"M232,56V200H160a32,32,0,0,0-32,32V88a32,32,0,0,1,32-32Z\" opacity=\"0.2\"/><path d=\"M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z\"/>","book-open-text:duothin":"<path d=\"M232,56V200H160a32,32,0,0,0-32,32V88a32,32,0,0,1,32-32Z\" opacity=\"0.2\"/><path d=\"M232,52H160a36,36,0,0,0-32,19.54A36,36,0,0,0,96,52H24a4,4,0,0,0-4,4V200a4,4,0,0,0,4,4H96a28,28,0,0,1,28,28,4,4,0,0,0,8,0,28,28,0,0,1,28-28h72a4,4,0,0,0,4-4V56A4,4,0,0,0,232,52ZM96,196H28V60H96a28,28,0,0,1,28,28V209.4A35.94,35.94,0,0,0,96,196Zm132,0H160a35.94,35.94,0,0,0-28,13.41V88a28,28,0,0,1,28-28h68ZM160,92h40a4,4,0,0,1,0,8H160a4,4,0,0,1,0-8Zm44,36a4,4,0,0,1-4,4H160a4,4,0,0,1,0-8h40A4,4,0,0,1,204,128Zm0,32a4,4,0,0,1-4,4H160a4,4,0,0,1,0-8h40A4,4,0,0,1,204,160Z\"/>","feather:light":"<path d=\"M238,80A62,62,0,0,0,132.18,36.14L62.1,105.41a13.94,13.94,0,0,0-4.1,9.9v74.21L27.76,219.76a6,6,0,1,0,8.48,8.48L66.48,198h74.21a13.94,13.94,0,0,0,9.9-4.1l0,0,68.83-69.63h0l.39-.4A61.6,61.6,0,0,0,238,80ZM140.64,44.64a50,50,0,0,1,72,69.36H150.48l37.76-37.76a6,6,0,0,0-8.48-8.48l-48,48h0L118,129.52V67ZM70,115.31a2,2,0,0,1,.56-1.39l35.44-35v62.63l-36,36Zm72.09,70.11a2,2,0,0,1-1.4.58H78.48l37.76-37.75h0L138.48,126h62.35Z\"/>","pen-nib:light":"<path d=\"M246,92.68a13.94,13.94,0,0,0-4.1-9.9L173.21,14.1a14,14,0,0,0-19.8,0L124.68,42.83,66.22,64.76a14,14,0,0,0-8.9,10.8L34.08,215A6,6,0,0,0,40,222a6.61,6.61,0,0,0,1-.08l139.44-23.24a14,14,0,0,0,10.81-8.9l21.92-58.46,28.74-28.74A13.92,13.92,0,0,0,246,92.68Zm-66,92.89a2,2,0,0,1-1.54,1.27L57.49,207l52.87-52.88a26,26,0,1,0-8.48-8.48L49,198.53l20.17-121A2,2,0,0,1,70.43,76l56.06-21L201,129.51ZM110,132a14,14,0,1,1,14,14A14,14,0,0,1,110,132ZM233.41,94.1,208,119.51,136.48,48,161.9,22.58a2,2,0,0,1,2.83,0l68.68,68.69a2,2,0,0,1,0,2.83Z\"/>","quotes:light":"<path d=\"M100,58H40A14,14,0,0,0,26,72v64a14,14,0,0,0,14,14h62v10a34,34,0,0,1-34,34,6,6,0,0,0,0,12,46.06,46.06,0,0,0,46-46V72A14,14,0,0,0,100,58Zm2,80H40a2,2,0,0,1-2-2V72a2,2,0,0,1,2-2h60a2,2,0,0,1,2,2ZM216,58H156a14,14,0,0,0-14,14v64a14,14,0,0,0,14,14h62v10a34,34,0,0,1-34,34,6,6,0,0,0,0,12,46.06,46.06,0,0,0,46-46V72A14,14,0,0,0,216,58Zm2,80H156a2,2,0,0,1-2-2V72a2,2,0,0,1,2-2h60a2,2,0,0,1,2,2Z\"/>","airplane-tilt:duotone":"<path d=\"M209,81l-33,31,32,88-24,24-48-72-24,24v24L88,224,72,184,32,168l24-24H80l24-24L32,72,56,48l88,32,31-33A24,24,0,0,1,209,81Z\" opacity=\"0.2\"/><path d=\"M185.33,114.21l29.14-27.43.17-.16a32,32,0,0,0-45.26-45.26l-.16.17L141.79,70.67l-83-30.2a8,8,0,0,0-8.39,1.86l-24,24a8,8,0,0,0,1.22,12.31l63.89,42.59L76.69,136H56a8,8,0,0,0-5.65,2.34l-24,24A8,8,0,0,0,29,175.42l36.82,14.73,14.7,36.75.06.16a8,8,0,0,0,13.18,2.47l23.87-23.88A8,8,0,0,0,120,200V179.31l14.76-14.76,42.59,63.89a8,8,0,0,0,12.31,1.22l24-24a8,8,0,0,0,1.86-8.39Zm-.07,97.23-42.59-63.89A8,8,0,0,0,136.8,144a7.09,7.09,0,0,0-.79,0,8,8,0,0,0-5.66,2.34l-24,24A8,8,0,0,0,104,176v20.69L90.93,209.76,79.43,181A8,8,0,0,0,75,176.57l-28.74-11.5L59.32,152H80a8,8,0,0,0,5.66-2.34l24-24a8,8,0,0,0-1.22-12.32L44.56,70.74l13.5-13.49,83.22,30.26a8,8,0,0,0,8.56-2l30.94-32.88A16,16,0,0,1,203.4,75.22l-32.87,30.94a8,8,0,0,0-2,8.56l30.26,83.22Z\"/>","airplane-tilt:duothin":"<path d=\"M209,81l-33,31,32,88-24,24-48-72-24,24v24L88,224,72,184,32,168l24-24H80l24-24L32,72,56,48l88,32,31-33A24,24,0,0,1,209,81Z\" opacity=\"0.2\"/><path d=\"M180.67,113.1l31.05-29.23.09-.08a28,28,0,0,0-39.6-39.6l-.08.09L142.9,75.33,57.37,44.23a4,4,0,0,0-4.2.93l-24,24a4,4,0,0,0,.61,6.16l68,45.29L78.35,140H56a4,4,0,0,0-2.83,1.18l-24,24a4,4,0,0,0,1.34,6.54l38.42,15.36,15.34,38.37,0,.09a4,4,0,0,0,6.59,1.23l23.93-23.93A4,4,0,0,0,116,200V177.65l19.38-19.38,45.29,67.95a4,4,0,0,0,6.16.61l24-24a4,4,0,0,0,.93-4.2Zm4,104.62-45.29-67.94A4,4,0,0,0,136.4,148l-.39,0a4,4,0,0,0-2.83,1.18l-24,24A4,4,0,0,0,108,176v22.34L89.47,216.88,75.72,182.51a4,4,0,0,0-2.23-2.23L39.12,166.53,57.66,148H80a4,4,0,0,0,2.83-1.17l24-24a4,4,0,0,0-.61-6.16L38.28,71.37,57,52.62l85.61,31.13a4,4,0,0,0,4.28-1l31-32.93A20,20,0,0,1,206.2,78.09l-32.93,31a4,4,0,0,0-1,4.28L203.38,199Z\"/>","map-trifold:light":"<path d=\"M227.69,51.27a6,6,0,0,0-5.15-1.09L160.7,65.64l-62-31a6,6,0,0,0-4.14-.45l-64,16A6,6,0,0,0,26,56V200a6,6,0,0,0,7.46,5.82L95.3,190.36l62,31a6,6,0,0,0,4.14.45l64-16A6,6,0,0,0,230,200V56A6,6,0,0,0,227.69,51.27ZM102,49.71l52,26V206.29l-52-26Zm-64,11,52-13V179.32l-52,13ZM218,195.32l-52,13V76.68l52-13Z\"/>","suitcase-rolling:light":"<path d=\"M102,88v96a6,6,0,0,1-12,0V88a6,6,0,0,1,12,0Zm26-6a6,6,0,0,0-6,6v96a6,6,0,0,0,12,0V88A6,6,0,0,0,128,82Zm32,0a6,6,0,0,0-6,6v96a6,6,0,0,0,12,0V88A6,6,0,0,0,160,82Zm46-18V208a14,14,0,0,1-14,14H174v18a6,6,0,0,1-12,0V222H94v18a6,6,0,0,1-12,0V222H64a14,14,0,0,1-14-14V64A14,14,0,0,1,64,50H90V24A22,22,0,0,1,112,2h32a22,22,0,0,1,22,22V50h26A14,14,0,0,1,206,64ZM102,50h52V24a10,10,0,0,0-10-10H112a10,10,0,0,0-10,10Zm92,14a2,2,0,0,0-2-2H64a2,2,0,0,0-2,2V208a2,2,0,0,0,2,2H192a2,2,0,0,0,2-2Z\"/>","camera:light":"<path d=\"M208,58H179.21L165,36.67A6,6,0,0,0,160,34H96a6,6,0,0,0-5,2.67L76.78,58H48A22,22,0,0,0,26,80V192a22,22,0,0,0,22,22H208a22,22,0,0,0,22-22V80A22,22,0,0,0,208,58Zm10,134a10,10,0,0,1-10,10H48a10,10,0,0,1-10-10V80A10,10,0,0,1,48,70H80a6,6,0,0,0,5-2.67L99.21,46h57.57L171,67.33A6,6,0,0,0,176,70h32a10,10,0,0,1,10,10ZM128,90a42,42,0,1,0,42,42A42,42,0,0,0,128,90Zm0,72a30,30,0,1,1,30-30A30,30,0,0,1,128,162Z\"/>","paw-print:duotone":"<path d=\"M232,108a20,20,0,1,1-20-20A20,20,0,0,1,232,108ZM64,108a20,20,0,1,0-20,20A20,20,0,0,0,64,108ZM92,80A20,20,0,1,0,72,60,20,20,0,0,0,92,80Zm72,0a20,20,0,1,0-20-20A20,20,0,0,0,164,80Zm19.24,75.85A43.46,43.46,0,0,1,162.57,130a36,36,0,0,0-69.14,0,43.49,43.49,0,0,1-20.67,25.9,32,32,0,0,0,27.73,57.62,72.49,72.49,0,0,1,55,0,32,32,0,0,0,27.73-57.62Z\" opacity=\"0.2\"/><path d=\"M212,80a28,28,0,1,0,28,28A28,28,0,0,0,212,80Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,212,120ZM72,108a28,28,0,1,0-28,28A28,28,0,0,0,72,108ZM44,120a12,12,0,1,1,12-12A12,12,0,0,1,44,120ZM92,88A28,28,0,1,0,64,60,28,28,0,0,0,92,88Zm0-40A12,12,0,1,1,80,60,12,12,0,0,1,92,48Zm72,40a28,28,0,1,0-28-28A28,28,0,0,0,164,88Zm0-40a12,12,0,1,1-12,12A12,12,0,0,1,164,48Zm23.12,100.86a35.3,35.3,0,0,1-16.87-21.14,44,44,0,0,0-84.5,0A35.25,35.25,0,0,1,69,148.82,40,40,0,0,0,88,224a39.48,39.48,0,0,0,15.52-3.13,64.09,64.09,0,0,1,48.87,0,40,40,0,0,0,34.73-72ZM168,208a24,24,0,0,1-9.45-1.93,80.14,80.14,0,0,0-61.19,0,24,24,0,0,1-20.71-43.26,51.22,51.22,0,0,0,24.46-30.67,28,28,0,0,1,53.78,0,51.27,51.27,0,0,0,24.53,30.71A24,24,0,0,1,168,208Z\"/>","paw-print:duothin":"<path d=\"M232,108a20,20,0,1,1-20-20A20,20,0,0,1,232,108ZM64,108a20,20,0,1,0-20,20A20,20,0,0,0,64,108ZM92,80A20,20,0,1,0,72,60,20,20,0,0,0,92,80Zm72,0a20,20,0,1,0-20-20A20,20,0,0,0,164,80Zm19.24,75.85A43.46,43.46,0,0,1,162.57,130a36,36,0,0,0-69.14,0,43.49,43.49,0,0,1-20.67,25.9,32,32,0,0,0,27.73,57.62,72.49,72.49,0,0,1,55,0,32,32,0,0,0,27.73-57.62Z\" opacity=\"0.2\"/><path d=\"M212,84a24,24,0,1,0,24,24A24,24,0,0,0,212,84Zm0,40a16,16,0,1,1,16-16A16,16,0,0,1,212,124ZM68,108a24,24,0,1,0-24,24A24,24,0,0,0,68,108ZM44,124a16,16,0,1,1,16-16A16,16,0,0,1,44,124ZM92,84A24,24,0,1,0,68,60,24,24,0,0,0,92,84Zm0-40A16,16,0,1,1,76,60,16,16,0,0,1,92,44Zm72,40a24,24,0,1,0-24-24A24,24,0,0,0,164,84Zm0-40a16,16,0,1,1-16,16A16,16,0,0,1,164,44Zm21.18,108.36a39.32,39.32,0,0,1-18.77-23.52,40,40,0,0,0-76.82,0,39.3,39.3,0,0,1-18.73,23.51A36,36,0,0,0,102,217.17a68.14,68.14,0,0,1,51.95,0,36,36,0,0,0,31.23-64.79ZM168,212a27.8,27.8,0,0,1-11-2.23,76.16,76.16,0,0,0-58.11,0A27.72,27.72,0,0,1,88,212a28,28,0,0,1-13.29-52.65,47.23,47.23,0,0,0,22.56-28.29,32,32,0,0,1,61.46,0,47.26,47.26,0,0,0,22.6,28.3A28,28,0,0,1,168,212Z\"/>","bird:light":"<path d=\"M174,68a10,10,0,1,1-10-10A10,10,0,0,1,174,68Zm64,12a6,6,0,0,1-2.67,5L214,99.21V120A102.12,102.12,0,0,1,112,222H24a14,14,0,0,1-10.93-22.75l.07-.09L98,97.35V76.89C98,44.57,123.89,18.15,155.72,18H156a58,58,0,0,1,55.51,41.13L235.33,75A6,6,0,0,1,238,80Zm-16.82,0L203,67.88a6,6,0,0,1-2.48-3.48A46,46,0,0,0,156,30h-.23C130.53,30.12,110,51.16,110,76.89V99.52a6,6,0,0,1-1.39,3.85L22.43,206.78A2,2,0,0,0,24,210H51.86l71.53-85.84a6,6,0,0,1,9.22,7.68L67.48,210H112a90.1,90.1,0,0,0,90-90V96a6,6,0,0,1,2.67-5Z\"/>","butterfly:light":"<path d=\"M231.1,51.71C226.09,45.27,218.64,42,209,42c-16.33,0-37.41,11.06-56.4,29.59A132,132,0,0,0,134,93.94V56a6,6,0,0,0-12,0V93.94a132,132,0,0,0-18.54-22.35C84.49,53.06,63.4,42,47.07,42c-9.69,0-17.14,3.27-22.15,9.71-5.53,7.11-7.71,17.69-6.66,32.34.91,12.73,4.12,26.53,6.81,37.13,6.28,24.74,20.77,33,31.78,35.68A42,42,0,1,0,128,201.62a42,42,0,1,0,71.16-44.76c11-2.63,25.5-10.94,31.78-35.68C237.55,95.21,242.72,66.65,231.1,51.71ZM92,210a30.12,30.12,0,0,1-3.34-60A6,6,0,0,0,87.35,138a41.71,41.71,0,0,0-20.28,8c-9,.31-24.12-3.16-30.37-27.76-3.25-12.81-11.89-46.83-2.31-59.15C37.05,55.66,41.2,54,47.07,54c12.88,0,31.72,10.28,48,26.18C111.69,96.39,122,114.59,122,127.67V180A30,30,0,0,1,92,210Zm127.31-91.77C213.07,142.83,198,146.29,189,146a41.62,41.62,0,0,0-20.28-8A6,6,0,1,0,167.36,150,30.11,30.11,0,1,1,134,180V127.67c0-13.08,10.32-31.28,26.93-47.49C177.23,64.28,196.07,54,209,54c5.87,0,10,1.66,12.68,5.08C231.21,71.4,222.57,105.42,219.32,118.23Z\"/>","fish:light":"<path d=\"M166,76a10,10,0,1,1-10-10A10,10,0,0,1,166,76Zm49,66.67c-19.17,34.54-55.11,53.08-106.85,55.14L85.62,250.36A6,6,0,0,1,80.1,254h-.38a6,6,0,0,1-5.39-4.34L59.22,196.77,6.35,181.63a6,6,0,0,1-.71-11.29L58.2,147.85C60.28,96.13,78.81,60.2,113.33,41,159.56,15.34,219,30,222.09,31.78a6,6,0,0,1,2.12,2.11C226,36.94,240.67,96.38,215,142.65Zm-48,29.64A50.06,50.06,0,0,1,130,126,50.09,50.09,0,0,1,83.71,89c-8.46,16.93-13,38-13.63,63a6,6,0,0,1-3.64,5.38L25.88,174.74l39.85,11.41a6,6,0,0,1,4.12,4.12l11.38,39.85,17.39-40.56a6,6,0,0,1,5.37-3.64C129,185.33,150.05,180.76,167,172.29Zm51-94.53a171.1,171.1,0,0,0-3.86-35.92A170.78,170.78,0,0,0,178.25,38H178c-18.52,0-45,3.22-66.67,18.47A83.53,83.53,0,0,0,94.17,72.56a38,38,0,0,0,41.47,41.25,6,6,0,0,1,6.54,6.55,38,38,0,0,0,41.28,41.46,83.13,83.13,0,0,0,16.07-17.07C214.87,123,218.05,96.31,218,77.76Z\"/>","plant:duotone":"<path d=\"M138.54,149.46C106.62,96.25,149.18,43.05,239.63,48.37,245,138.82,191.75,181.39,138.54,149.46ZM16.26,88.26c-3.8,64.61,34.21,95,72.21,72.21C111.27,122.47,80.87,84.46,16.26,88.26Z\" opacity=\"0.2\"/><path d=\"M247.63,47.89a8,8,0,0,0-7.52-7.52c-51.76-3-93.32,12.74-111.18,42.22-11.8,19.48-11.78,43.16-.16,65.74a71.37,71.37,0,0,0-14.17,26.95L98.33,159c7.82-16.33,7.52-33.36-1-47.49C84.09,89.73,53.62,78,15.79,80.27a8,8,0,0,0-7.52,7.52c-2.23,37.83,9.46,68.3,31.25,81.5A45.82,45.82,0,0,0,63.44,176,54.58,54.58,0,0,0,87,170.33l25,25V224a8,8,0,0,0,16,0V194.51a55.61,55.61,0,0,1,12.27-35,73.91,73.91,0,0,0,33.31,8.4,60.9,60.9,0,0,0,31.83-8.86C234.89,141.21,250.67,99.65,247.63,47.89ZM86.06,146.74l-24.41-24.4a8,8,0,0,0-11.31,11.31l24.41,24.41c-9.61,3.18-18.93,2.39-26.94-2.46C32.47,146.31,23.79,124.32,24,96c28.31-.25,50.31,8.47,59.6,23.81C88.45,127.82,89.24,137.14,86.06,146.74Zm111.06-1.36c-13.4,8.11-29.15,8.73-45.15,2l53.69-53.7a8,8,0,0,0-11.31-11.32L140.65,136c-6.76-16-6.15-31.76,2-45.15,13.94-23,47-35.8,89.33-34.83C232.94,98.34,220.14,131.44,197.12,145.38Z\"/>","plant:duothin":"<path d=\"M138.54,149.46C106.62,96.25,149.18,43.05,239.63,48.37,245,138.82,191.75,181.39,138.54,149.46ZM16.26,88.26c-3.8,64.61,34.21,95,72.21,72.21C111.27,122.47,80.87,84.46,16.26,88.26Z\" opacity=\"0.2\"/><path d=\"M243.63,48.12a4,4,0,0,0-3.76-3.75c-50.25-3-90.44,12.1-107.52,40.29-11.64,19.22-11.17,41.92,1.24,64.21a67.33,67.33,0,0,0-16.65,34.41L93.45,159.79c8.63-16,8.81-32.33.42-46.19C81.45,93.09,52.35,82.13,16,84.26A4,4,0,0,0,12.26,88c-2.13,36.33,8.83,65.43,29.34,77.85a41.82,41.82,0,0,0,21.88,6.18,51.29,51.29,0,0,0,24.31-6.6L116,193.67c0,.28,0,.56,0,.84V224a4,4,0,0,0,8,0V194.51a59.57,59.57,0,0,1,15.29-40c11.49,6.36,23.07,9.56,34.24,9.56a57,57,0,0,0,29.81-8.41C231.52,138.57,246.59,98.38,243.63,48.12ZM45.74,159C28.47,148.56,19,123.69,20.08,92.08c31.61-1.09,56.48,8.39,67,25.66,6.48,10.71,6.59,23.37.46,36.09L58.82,125.17a4,4,0,0,0-5.65,5.65l28.67,28.67C69.11,165.62,56.45,165.51,45.74,159ZM199.19,148.8c-16.05,9.72-35.09,9.59-54.08-.25l57.72-57.73a4,4,0,0,0-5.65-5.66l-57.73,57.73c-9.84-19-10-38-.25-54.08,15.11-25,51.08-38.53,96.63-36.64C237.73,97.72,224.15,133.69,199.19,148.8Z\"/>","leaf:light":"<path d=\"M221.45,40.19a6,6,0,0,0-5.64-5.64C140.43,30.11,80.14,52.71,54.53,95c-17.44,28.79-16.76,62.8,1.79,96.2L35.76,211.76a6,6,0,1,0,8.48,8.48L64.8,199.68c17.27,9.59,34.7,14.41,51.49,14.41A85.38,85.38,0,0,0,161,201.47C203.29,175.86,225.88,115.57,221.45,40.19Zm-66.66,151c-24.08,14.58-52.64,14.37-81.13-.39l90.59-90.59a6,6,0,0,0-8.48-8.48L65.18,182.34c-14.76-28.49-15-57-.39-81.13,22.68-37.43,76.63-57.8,145-54.95C212.59,114.58,192.22,168.54,154.79,191.21Z\"/>","tree-evergreen:light":"<path d=\"M228.74,188.32,180.27,126H208a6,6,0,0,0,4.76-9.66l-80-104a6,6,0,0,0-9.52,0l-80,104A6,6,0,0,0,48,126H75.73L27.26,188.32A6,6,0,0,0,32,198h90v42a6,6,0,0,0,12,0V198h90a6,6,0,0,0,4.74-9.68ZM44.27,186l48.47-62.32A6,6,0,0,0,88,114H60.19L128,25.84,195.81,114H168a6,6,0,0,0-4.74,9.68L211.73,186Z\"/>","flower-tulip:light":"<path d=\"M208,50a85.52,85.52,0,0,0-36.17,8c-14.67-25.9-40-38.79-41.15-39.37a6,6,0,0,0-5.36,0C124.18,19.21,98.84,32.1,84.17,58A85.52,85.52,0,0,0,48,50a6,6,0,0,0-6,6V96a86.1,86.1,0,0,0,80,85.77v40.52L82.68,202.63a6,6,0,0,0-5.36,10.74l48,24a6,6,0,0,0,5.36,0l48-24a6,6,0,1,0-5.36-10.74L134,222.29V181.77A86.1,86.1,0,0,0,214,96V56A6,6,0,0,0,208,50ZM128,30.88c6.46,3.84,23.07,15,33.33,32.94A86.5,86.5,0,0,0,128,104.5,86.5,86.5,0,0,0,94.67,63.82C104.93,45.83,121.54,34.71,128,30.88ZM54,96V62.24A74.11,74.11,0,0,1,122,136v33.76A74.1,74.1,0,0,1,54,96Zm148,0a74.1,74.1,0,0,1-68,73.76V136a74.11,74.11,0,0,1,68-73.76Z\"/>","brain:duotone":"<path d=\"M240,124a48,48,0,0,1-32,45.27h0V176a40,40,0,0,1-80,0,40,40,0,0,1-80,0v-6.73h0a48,48,0,0,1,0-90.54V72a40,40,0,0,1,80,0,40,40,0,0,1,80,0v6.73A48,48,0,0,1,240,124Z\" opacity=\"0.2\"/><path d=\"M248,124a56.11,56.11,0,0,0-32-50.61V72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.2V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.41A56.09,56.09,0,0,0,248,124ZM88,208a32,32,0,0,1-31.81-28.56A55.87,55.87,0,0,0,64,180h8a8,8,0,0,0,0-16H64A40,40,0,0,1,50.67,86.27,8,8,0,0,0,56,78.73V72a32,32,0,0,1,64,0v68.26A47.8,47.8,0,0,0,88,128a8,8,0,0,0,0,16,32,32,0,0,1,0,64Zm104-44h-8a8,8,0,0,0,0,16h8a55.87,55.87,0,0,0,7.81-.56A32,32,0,1,1,168,144a8,8,0,0,0,0-16,47.8,47.8,0,0,0-32,12.26V72a32,32,0,0,1,64,0v6.73a8,8,0,0,0,5.33,7.54A40,40,0,0,1,192,164Zm16-52a8,8,0,0,1-8,8h-4a36,36,0,0,1-36-36V80a8,8,0,0,1,16,0v4a20,20,0,0,0,20,20h4A8,8,0,0,1,208,112ZM60,120H56a8,8,0,0,1,0-16h4A20,20,0,0,0,80,84V80a8,8,0,0,1,16,0v4A36,36,0,0,1,60,120Z\"/>","brain:duothin":"<path d=\"M240,124a48,48,0,0,1-32,45.27h0V176a40,40,0,0,1-80,0,40,40,0,0,1-80,0v-6.73h0a48,48,0,0,1,0-90.54V72a40,40,0,0,1,80,0,40,40,0,0,1,80,0v6.73A48,48,0,0,1,240,124Z\" opacity=\"0.2\"/><path d=\"M244,124a52.1,52.1,0,0,0-32-48V72a44,44,0,0,0-84-18.3A44,44,0,0,0,44,72v4a52,52,0,0,0,0,96v4a44,44,0,0,0,84,18.3A44,44,0,0,0,212,176v-4A52.07,52.07,0,0,0,244,124ZM88,212a36,36,0,0,1-36-36v-1.41A52.13,52.13,0,0,0,64,176h8a4,4,0,0,0,0-8H64A44,44,0,0,1,49.33,82.5,4,4,0,0,0,52,78.73V72a36,36,0,0,1,72,0v78.75A44,44,0,0,0,88,132a4,4,0,0,0,0,8,36,36,0,0,1,0,72Zm104-44h-8a4,4,0,0,0,0,8h8a52.13,52.13,0,0,0,12-1.41V176a36,36,0,1,1-36-36,4,4,0,0,0,0-8,44,44,0,0,0-36,18.75V72a36,36,0,0,1,72,0v6.73a4,4,0,0,0,2.67,3.77A44,44,0,0,1,192,168Zm12-56a4,4,0,0,1-4,4h-4a32,32,0,0,1-32-32V80a4,4,0,0,1,8,0v4a24,24,0,0,0,24,24h4A4,4,0,0,1,204,112ZM92,84a32,32,0,0,1-32,32H56a4,4,0,0,1,0-8h4A24,24,0,0,0,84,84V80a4,4,0,0,1,8,0Z\"/>","smiley:light":"<path d=\"M173.19,155c-9.92,17.16-26.39,27-45.19,27s-35.27-9.84-45.19-27a6,6,0,0,1,10.38-6c7.84,13.54,20.2,21,34.81,21s27-7.46,34.81-21a6,6,0,1,1,10.38,6ZM230,128A102,102,0,1,1,128,26,102.12,102.12,0,0,1,230,128Zm-12,0a90,90,0,1,0-90,90A90.1,90.1,0,0,0,218,128ZM92,118a10,10,0,1,0-10-10A10,10,0,0,0,92,118Zm72-20a10,10,0,1,0,10,10A10,10,0,0,0,164,98Z\"/>","head-circuit:light":"<path d=\"M190.37,170.62A86.27,86.27,0,0,0,222,102c-1-44.68-36.76-81.51-81.34-83.86A86,86,0,0,0,50,102.51l-22.69,43.6c-.07.13-.13.26-.19.4a14,14,0,0,0,6.61,18l.18.09,24.08,11V208a14,14,0,0,0,14,14h48a6,6,0,0,0,0-12H72a2,2,0,0,1-2-2V171.81a6,6,0,0,0-3.5-5.46L39,153.78a2,2,0,0,1-.93-2.4l23.21-44.61A6,6,0,0,0,62,104a74.05,74.05,0,0,1,60-72.68V50.84a22,22,0,1,0,12,0V30.05c2-.05,4-.05,6,.06A74.29,74.29,0,0,1,206.63,82H184a6,6,0,0,0-4.61,2.16L152.94,115.9a22.06,22.06,0,1,0,9.21,7.69L186.81,94h22.5a72.44,72.44,0,0,1,.67,8.26A74.24,74.24,0,0,1,180.4,163.2a6,6,0,0,0-2.35,5.54l8,64A6,6,0,0,0,192,238a6.3,6.3,0,0,0,.75-.05,6,6,0,0,0,5.21-6.7ZM138,72a10,10,0,1,1-10-10A10,10,0,0,1,138,72Zm6,74a10,10,0,1,1,10-10A10,10,0,0,1,144,146Z\"/>","puzzle-piece:light":"<path d=\"M219.21,160.24a6,6,0,0,0-5.78-.35,22,22,0,1,1-11.05-41.83,22.15,22.15,0,0,1,11.05,2.06A6,6,0,0,0,222,114.7V72a14,14,0,0,0-14-14H169.48a35,35,0,0,0,.52-6,34.1,34.1,0,0,0-10.73-24.78,33.64,33.64,0,0,0-25.45-9.15A34,34,0,0,0,102.54,58H64A14,14,0,0,0,50,72v34.53a34,34,0,0,0-30.79,10.2,34,34,0,0,0,22.31,57.18,34.34,34.34,0,0,0,8.48-.44V208a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V165.31A6,6,0,0,0,219.21,160.24ZM210,208a2,2,0,0,1-2,2H64a2,2,0,0,1-2-2V165.31a6,6,0,0,0-6-6,5.92,5.92,0,0,0-2.57.58,22,22,0,0,1-31.38-18.46,22,22,0,0,1,31.38-21.31A6,6,0,0,0,62,114.7V72a2,2,0,0,1,2-2h46.69a6,6,0,0,0,5.42-8.57,22.25,22.25,0,0,1-2-11,22,22,0,1,1,41.83,11A6,6,0,0,0,161.3,70H208a2,2,0,0,1,2,2v34.54a34,34,0,0,0-39.93,31.28,33.71,33.71,0,0,0,9.14,25.45A34.15,34.15,0,0,0,210,173.48Z\"/>","lightbulb-filament:duotone":"<path d=\"M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z\" opacity=\"0.2\"/><path d=\"M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.5C39.74,56.83,78.26,17.15,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.64,71.64,0,0,0,27.64,56.3h0A32,32,0,0,1,96,186v6h24V147.31L90.34,117.66a8,8,0,0,1,11.32-11.32L128,132.69l26.34-26.35a8,8,0,0,1,11.32,11.32L136,147.31V192h24v-6a32.12,32.12,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Z\"/>","lightbulb-filament:duothin":"<path d=\"M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z\" opacity=\"0.2\"/><path d=\"M172,232a4,4,0,0,1-4,4H88a4,4,0,0,1,0-8h80A4,4,0,0,1,172,232Zm40-128a83.59,83.59,0,0,1-32.11,66.06A20.2,20.2,0,0,0,172,186v6a12,12,0,0,1-12,12H96a12,12,0,0,1-12-12v-6a20,20,0,0,0-7.76-15.81A83.58,83.58,0,0,1,44,104.47C43.75,59,80.52,21.09,126,20a84,84,0,0,1,86,84Zm-8,0a76,76,0,0,0-77.84-76C85,29,51.77,63.27,52,104.43a75.62,75.62,0,0,0,29.17,59.43A28,28,0,0,1,92,186v6a4,4,0,0,0,4,4h28V145.66L93.17,114.83a4,4,0,0,1,5.66-5.66L128,138.34l29.17-29.17a4,4,0,1,1,5.66,5.66L132,145.66V196h28a4,4,0,0,0,4-4v-6a28.14,28.14,0,0,1,10.94-22.2A75.62,75.62,0,0,0,204,104Z\"/>","rocket-launch:light":"<path d=\"M221.86,47.24a14,14,0,0,0-13.11-13.1c-12.31-.73-43.77.39-69.88,26.5L133.52,66H74.35a13.9,13.9,0,0,0-9.89,4.1L30.11,104.44a14,14,0,0,0,7.94,23.76l39.13,5.46,45.16,45.16L127.8,218a14,14,0,0,0,23.76,7.92l34.35-34.35a13.91,13.91,0,0,0,4.1-9.89V122.48l5.35-5.35h0C221.46,91,222.59,59.56,221.86,47.24ZM38.11,115a2,2,0,0,1,.49-2L72.94,78.58A2,2,0,0,1,74.35,78h47.17L77.87,121.64l-38.14-5.32A1.93,1.93,0,0,1,38.11,115ZM178,181.65a2,2,0,0,1-.59,1.41L143.08,217.4a2,2,0,0,1-3.4-1.11l-5.32-38.16L178,134.48Zm8.87-73h0L128,167.51,88.49,128l58.87-58.88a78.47,78.47,0,0,1,60.69-23A2,2,0,0,1,209.88,48,78.47,78.47,0,0,1,186.88,108.64ZM100,190.31C95.68,199.84,81.13,222,40,222a6,6,0,0,1-6-6c0-41.13,22.16-55.68,31.69-60a6,6,0,1,1,5,10.92c-7,3.17-22.53,13.52-24.47,42.91,29.39-1.94,39.74-17.52,42.91-24.47a6,6,0,1,1,10.92,5Z\"/>","atom:light":"<path d=\"M193.83,128a195.73,195.73,0,0,0,19.9-33.65c10.74-23.88,11-42.66.8-52.88s-29-9.94-52.88.8A195.73,195.73,0,0,0,128,62.17a195.73,195.73,0,0,0-33.65-19.9c-23.88-10.74-42.66-11-52.88-.8s-9.94,29,.8,52.88A195.73,195.73,0,0,0,62.17,128a195.73,195.73,0,0,0-19.9,33.65c-10.74,23.88-11,42.66-.8,52.88h0c5,5,12,7.47,20.63,7.47,9.1,0,20-2.76,32.25-8.27A195.73,195.73,0,0,0,128,193.83a195.73,195.73,0,0,0,33.65,19.9C173.9,219.24,184.8,222,193.9,222c8.64,0,15.65-2.49,20.63-7.47h0c10.23-10.22,9.94-29-.8-52.88A195.73,195.73,0,0,0,193.83,128ZM206,50c9.28,9.28,2.36,36.29-19.8,68a306.2,306.2,0,0,0-22.78-25.45A306.2,306.2,0,0,0,138,69.76C169.75,47.61,196.77,40.68,206,50Zm-27.19,78A289.17,289.17,0,0,1,155,155a289.17,289.17,0,0,1-27,23.88A289.17,289.17,0,0,1,101,155a290.62,290.62,0,0,1-23.88-27A297.06,297.06,0,0,1,128,77.14,290.74,290.74,0,0,1,155,101,289.17,289.17,0,0,1,178.85,128ZM50,50c2.68-2.69,6.84-4,12.17-4,13.11,0,33.3,8,55.87,23.81A302.94,302.94,0,0,0,92.54,92.54,306.2,306.2,0,0,0,69.76,118C47.6,86.25,40.68,59.24,50,50ZM50,206h0c-9.28-9.28-2.35-36.29,19.8-68a306.2,306.2,0,0,0,22.78,25.45A306.2,306.2,0,0,0,118,186.24C86.25,208.4,59.24,215.32,50,206ZM206,206c-9.28,9.28-36.29,2.35-68-19.81a304.26,304.26,0,0,0,25.45-22.77A306.2,306.2,0,0,0,186.24,138C208.4,169.75,215.32,196.76,206,206Zm-68-78a10,10,0,1,1-10-10A10,10,0,0,1,138,128Z\"/>","sparkle:light":"<path d=\"M196.89,130.94,144.4,111.6,125.06,59.11a13.92,13.92,0,0,0-26.12,0L79.6,111.6,27.11,130.94a13.92,13.92,0,0,0,0,26.12L79.6,176.4l19.34,52.49a13.92,13.92,0,0,0,26.12,0L144.4,176.4l52.49-19.34a13.92,13.92,0,0,0,0-26.12Zm-4.15,14.86-55.08,20.3a6,6,0,0,0-3.56,3.56l-20.3,55.08a1.92,1.92,0,0,1-3.6,0L89.9,169.66a6,6,0,0,0-3.56-3.56L31.26,145.8a1.92,1.92,0,0,1,0-3.6l55.08-20.3a6,6,0,0,0,3.56-3.56l20.3-55.08a1.92,1.92,0,0,1,3.6,0l20.3,55.08a6,6,0,0,0,3.56,3.56l55.08,20.3a1.92,1.92,0,0,1,0,3.6ZM146,40a6,6,0,0,1,6-6h18V16a6,6,0,0,1,12,0V34h18a6,6,0,0,1,0,12H182V64a6,6,0,0,1-12,0V46H152A6,6,0,0,1,146,40ZM246,88a6,6,0,0,1-6,6H230v10a6,6,0,0,1-12,0V94H208a6,6,0,0,1,0-12h10V72a6,6,0,0,1,12,0V82h10A6,6,0,0,1,246,88Z\"/>","train:duotone":"<path d=\"M208,72v56H48V72Z\" opacity=\"0.2\"/><path d=\"M184,24H72A32,32,0,0,0,40,56V184a32,32,0,0,0,32,32h8L65.6,235.2a8,8,0,1,0,12.8,9.6L100,216h56l21.6,28.8a8,8,0,1,0,12.8-9.6L176,216h8a32,32,0,0,0,32-32V56A32,32,0,0,0,184,24ZM56,120V80h64v40Zm80-40h64v40H136ZM72,40H184a16,16,0,0,1,16,16v8H56V56A16,16,0,0,1,72,40ZM184,200H72a16,16,0,0,1-16-16V136H200v48A16,16,0,0,1,184,200ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm88,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z\"/>","train:duothin":"<path d=\"M208,72v56H48V72Z\" opacity=\"0.2\"/><path d=\"M184,28H72A28,28,0,0,0,44,56V184a28,28,0,0,0,28,28H88L68.8,237.6a4,4,0,1,0,6.4,4.8L98,212h60l22.8,30.4a4,4,0,0,0,6.4-4.8L168,212h16a28,28,0,0,0,28-28V56A28,28,0,0,0,184,28ZM52,124V76h72v48Zm80-48h72v48H132ZM72,36H184a20,20,0,0,1,20,20V68H52V56A20,20,0,0,1,72,36ZM184,204H72a20,20,0,0,1-20-20V132H204v52A20,20,0,0,1,184,204ZM92,172a8,8,0,1,1-8-8A8,8,0,0,1,92,172Zm88,0a8,8,0,1,1-8-8A8,8,0,0,1,180,172Z\"/>","car-profile:light":"<path d=\"M240,114H210.49l-43.9-43.9a13.94,13.94,0,0,0-9.9-4.1H44.28a14,14,0,0,0-11.65,6.23L3,116.67A6,6,0,0,0,2,120v48a14,14,0,0,0,14,14H34.6a30,30,0,0,0,58.8,0h69.2a30,30,0,0,0,58.8,0H240a14,14,0,0,0,14-14V128A14,14,0,0,0,240,114ZM42.62,78.89A2,2,0,0,1,44.28,78H156.69a2,2,0,0,1,1.41.59L193.52,114H19.21ZM64,194a18,18,0,1,1,18-18A18,18,0,0,1,64,194Zm128,0a18,18,0,1,1,18-18A18,18,0,0,1,192,194Zm50-26a2,2,0,0,1-2,2H221.4a30,30,0,0,0-58.8,0H93.4a30,30,0,0,0-58.8,0H16a2,2,0,0,1-2-2V126H240a2,2,0,0,1,2,2Z\"/>","bus:light":"<path d=\"M184,34H72A30,30,0,0,0,42,64V208a14,14,0,0,0,14,14H80a14,14,0,0,0,14-14V190h68v18a14,14,0,0,0,14,14h24a14,14,0,0,0,14-14V64A30,30,0,0,0,184,34ZM54,178V118H202v60ZM54,78H202v28H54ZM72,46H184a18,18,0,0,1,18,18v2H54V64A18,18,0,0,1,72,46ZM82,208a2,2,0,0,1-2,2H56a2,2,0,0,1-2-2V190H82Zm118,2H176a2,2,0,0,1-2-2V190h28v18A2,2,0,0,1,200,210Zm-98-62a10,10,0,1,1-10-10A10,10,0,0,1,102,148Zm72,0a10,10,0,1,1-10-10A10,10,0,0,1,174,148Zm72-68v24a6,6,0,0,1-12,0V80a6,6,0,0,1,12,0ZM22,80v24a6,6,0,0,1-12,0V80a6,6,0,0,1,12,0Z\"/>","bicycle:light":"<path d=\"M208,114a45.88,45.88,0,0,0-17.8,3.58L162.45,70H192a10,10,0,0,1,10,10,6,6,0,0,0,12,0,22,22,0,0,0-22-22H152a6,6,0,0,0-5.18,9l13.4,23H98.11L81.18,61A6,6,0,0,0,76,58H48a6,6,0,0,0,0,12H72.55l15,25.64L70,119.62a46.22,46.22,0,1,0,9.68,7.09L94.11,107,126.82,163a6,6,0,0,0,5.19,3,5.91,5.91,0,0,0,3-.82,6,6,0,0,0,2.16-8.2l-32.07-55h62.11l12.63,21.66A46,46,0,1,0,208,114ZM82,160a34,34,0,1,1-19.13-30.57l-19.72,27a6,6,0,0,0,9.7,7.08l19.7-27A33.88,33.88,0,0,1,82,160Zm126,34a34,34,0,0,1-22-59.86L202.82,163a6,6,0,0,0,5.19,3,5.91,5.91,0,0,0,3-.82,6,6,0,0,0,2.16-8.2l-16.86-28.91A34,34,0,1,1,208,194Z\"/>","house-line:duotone":"<path d=\"M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z\" opacity=\"0.2\"/><path d=\"M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z\"/>","house-line:duothin":"<path d=\"M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z\" opacity=\"0.2\"/><path d=\"M240,212H220V126.34l9.17,9.17a4,4,0,1,0,5.66-5.66L136.49,31.51a12,12,0,0,0-17,0L21.17,129.85a4,4,0,1,0,5.66,5.66L36,126.34V212H16a4,4,0,0,0,0,8H240a4,4,0,0,0,0-8ZM44,118.34l81.17-81.17a4,4,0,0,1,5.66,0L212,118.34V212H156V152a4,4,0,0,0-4-4H104a4,4,0,0,0-4,4v60H44ZM148,212H108V156h40Z\"/>","buildings:light":"<path d=\"M240,210H222V96a14,14,0,0,0-14-14H142V32a14,14,0,0,0-21.77-11.64l-80,53.33A14,14,0,0,0,34,85.34V210H16a6,6,0,0,0,0,12H240a6,6,0,0,0,0-12ZM208,94a2,2,0,0,1,2,2V210H142V94ZM46,85.34a2,2,0,0,1,.89-1.66l80-53.34A2,2,0,0,1,130,32V210H46ZM110,112v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm-32,0v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm0,56v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Zm32,0v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Z\"/>","key:light":"<path d=\"M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z\"/>","couch:light":"<path d=\"M238,107.37V72a14,14,0,0,0-14-14H32A14,14,0,0,0,18,72v35.37A14,14,0,0,0,10,120v48a14,14,0,0,0,14,14H34v18a6,6,0,0,0,12,0V182H210v18a6,6,0,0,0,12,0V182h10a14,14,0,0,0,14-14V120A14,14,0,0,0,238,107.37ZM226,72v34H216a14,14,0,0,0-14,14v18H134V70h90A2,2,0,0,1,226,72ZM32,70h90v68H54V120a14,14,0,0,0-14-14H30V72A2,2,0,0,1,32,70Zm202,98a2,2,0,0,1-2,2H24a2,2,0,0,1-2-2V120a2,2,0,0,1,2-2H40a2,2,0,0,1,2,2v24a6,6,0,0,0,6,6H208a6,6,0,0,0,6-6V120a2,2,0,0,1,2-2h16a2,2,0,0,1,2,2Z\"/>","users-three:duotone":"<path d=\"M168,144a40,40,0,1,1-40-40A40,40,0,0,1,168,144ZM64,56A32,32,0,1,0,96,88,32,32,0,0,0,64,56Zm128,0a32,32,0,1,0,32,32A32,32,0,0,0,192,56Z\" opacity=\"0.2\"/><path d=\"M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1,0-16,24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.85,8,57,57,0,0,0-98.15,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z\"/>","users-three:duothin":"<path d=\"M168,144a40,40,0,1,1-40-40A40,40,0,0,1,168,144ZM64,56A32,32,0,1,0,96,88,32,32,0,0,0,64,56Zm128,0a32,32,0,1,0,32,32A32,32,0,0,0,192,56Z\" opacity=\"0.2\"/><path d=\"M237,147.44a4,4,0,0,1-5.48-1.4c-8.33-14-20.93-22-34.56-22a4,4,0,0,1-1.2-.2,36.76,36.76,0,0,1-3.8.2,4,4,0,0,1,0-8,28,28,0,1,0-27.12-35,4,4,0,0,1-7.75-2,36,36,0,1,1,54,39.48c10.81,3.85,20.51,12,27.31,23.48A4,4,0,0,1,237,147.44ZM187.46,214a4,4,0,0,1-1.46,5.46,3.93,3.93,0,0,1-2,.54,4,4,0,0,1-3.46-2,61,61,0,0,0-105.08,0,4,4,0,0,1-6.92-4,68.35,68.35,0,0,1,39.19-31,44,44,0,1,1,40.54,0A68.35,68.35,0,0,1,187.46,214ZM128,180a36,36,0,1,0-36-36A36,36,0,0,0,128,180ZM64,116A28,28,0,1,1,91.12,81a4,4,0,0,0,7.75-2A36,36,0,1,0,45.3,118.75,63.55,63.55,0,0,0,12.8,141.6a4,4,0,0,0,6.4,4.8A55.55,55.55,0,0,1,64,124a4,4,0,0,0,0-8Z\"/>","user-circle:light":"<path d=\"M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26ZM71.44,198a66,66,0,0,1,113.12,0,89.8,89.8,0,0,1-113.12,0ZM94,120a34,34,0,1,1,34,34A34,34,0,0,1,94,120Zm99.51,69.64a77.53,77.53,0,0,0-40-31.38,46,46,0,1,0-51,0,77.53,77.53,0,0,0-40,31.38,90,90,0,1,1,131,0Z\"/>","heart:light":"<path d=\"M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42ZM128,217.11C111.59,207.64,30,157.72,30,102A48.05,48.05,0,0,1,78,54c20.28,0,37.31,10.83,44.45,28.27a6,6,0,0,0,11.1,0C140.69,64.83,157.72,54,178,54a48.05,48.05,0,0,1,48,48C226,157.72,144.41,207.64,128,217.11Z\"/>","globe:light":"<path d=\"M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm81.57,64H169.19a132.58,132.58,0,0,0-25.73-50.67A90.29,90.29,0,0,1,209.57,90ZM218,128a89.7,89.7,0,0,1-3.83,26H171.81a155.43,155.43,0,0,0,0-52h42.36A89.7,89.7,0,0,1,218,128Zm-90,87.83a110,110,0,0,1-15.19-19.45A124.24,124.24,0,0,1,99.35,166h57.3a124.24,124.24,0,0,1-13.46,30.38A110,110,0,0,1,128,215.83ZM96.45,154a139.18,139.18,0,0,1,0-52h63.1a139.18,139.18,0,0,1,0,52ZM38,128a89.7,89.7,0,0,1,3.83-26H84.19a155.43,155.43,0,0,0,0,52H41.83A89.7,89.7,0,0,1,38,128Zm90-87.83a110,110,0,0,1,15.19,19.45A124.24,124.24,0,0,1,156.65,90H99.35a124.24,124.24,0,0,1,13.46-30.38A110,110,0,0,1,128,40.17Zm-15.46-.84A132.58,132.58,0,0,0,86.81,90H46.43A90.29,90.29,0,0,1,112.54,39.33ZM46.43,166H86.81a132.58,132.58,0,0,0,25.73,50.67A90.29,90.29,0,0,1,46.43,166Zm97,50.67A132.58,132.58,0,0,0,169.19,166h40.38A90.29,90.29,0,0,1,143.46,216.67Z\"/>","bank:duotone":"<path d=\"M232,96H24L128,32Z\" opacity=\"0.2\"/><path d=\"M24,104H48v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16H208V104h24a8,8,0,0,0,4.19-14.81l-104-64a8,8,0,0,0-8.38,0l-104,64A8,8,0,0,0,24,104Zm40,0H96v64H64Zm80,0v64H112V104Zm48,64H160V104h32ZM128,41.39,203.74,88H52.26ZM248,208a8,8,0,0,1-8,8H16a8,8,0,0,1,0-16H240A8,8,0,0,1,248,208Z\"/>","bank:duothin":"<path d=\"M232,96H24L128,32Z\" opacity=\"0.2\"/><path d=\"M24,100H52v72H32a4,4,0,0,0,0,8H224a4,4,0,0,0,0-8H204V100h28a4,4,0,0,0,2.1-7.41l-104-64a4,4,0,0,0-4.2,0l-104,64A4,4,0,0,0,24,100Zm36,0h40v72H60Zm88,0v72H108V100Zm48,72H156V100h40ZM128,36.7,217.87,92H38.13ZM244,208a4,4,0,0,1-4,4H16a4,4,0,0,1,0-8H240A4,4,0,0,1,244,208Z\"/>","scales:light":"<path d=\"M237.57,133.77l-32-80h0a6,6,0,0,0-6.86-3.63L134,64.52V40a6,6,0,0,0-12,0V67.19l-67.3,15a6,6,0,0,0-4.27,3.63h0v0l-32,80A6.1,6.1,0,0,0,18,168c0,21.86,23.31,30,38,30s38-8.14,38-30a6.1,6.1,0,0,0-.43-2.23L64.19,92.33,122,79.48V210H104a6,6,0,0,0,0,12h48a6,6,0,0,0,0-12H134V76.81l56.21-12.49-27.78,69.45A6.1,6.1,0,0,0,162,136c0,21.86,23.31,30,38,30s38-8.14,38-30A6.1,6.1,0,0,0,237.57,133.77ZM56,186a36.89,36.89,0,0,1-17.48-4.56c-5.37-3.13-8.15-7.18-8.49-12.37l26-64.91,26,64.91C81.06,182.85,62.58,186,56,186Zm144-32a36.89,36.89,0,0,1-17.48-4.56c-5.37-3.13-8.15-7.18-8.49-12.37l26-64.91,26,64.91C225.06,150.85,206.58,154,200,154Z\"/>","hourglass:light":"<path d=\"M198,75.64V40a14,14,0,0,0-14-14H72A14,14,0,0,0,58,40V76a14.06,14.06,0,0,0,5.6,11.2L118,128,63.6,168.8A14.06,14.06,0,0,0,58,180v36a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V180.36a14.08,14.08,0,0,0-5.56-11.17L138,128l54.49-41.19A14.08,14.08,0,0,0,198,75.64ZM186,180.36V216a2,2,0,0,1-2,2H72a2,2,0,0,1-2-2V180a2,2,0,0,1,.8-1.6L128,135.51l57.22,43.25A2,2,0,0,1,186,180.36Zm0-104.72a2,2,0,0,1-.79,1.6L128,120.49,70.8,77.6A2,2,0,0,1,70,76V40a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2Z\"/>","infinity:light":"<path d=\"M246,128a54,54,0,0,1-92.18,38.18,3.07,3.07,0,0,1-.25-.26l-60-67.74a42,42,0,1,0,0,59.64l8.57-9.67a6,6,0,1,1,9,8l-8.69,9.81a3.07,3.07,0,0,1-.25.26,54,54,0,1,1,0-76.36,3.07,3.07,0,0,1,.25.26l60,67.74a42,42,0,1,0,0-59.64l-8.57,9.67a6,6,0,1,1-9-8l8.69-9.81a3.07,3.07,0,0,1,.25-.26A54,54,0,0,1,246,128Z\"/>"};
+
+// Edit this list to change a topic, its writer, its color, or its background icons.
+const TOPICS = [
+  { topic: "Education",      name: "Abdullah Aloufi",        color: "#4E6390", icons: ["graduation-cap", "books", "pencil-simple", "exam"] },
+  { topic: "Technology",     name: "AbdulMalik Alquraisi",   color: "#3C6E8F", icons: ["cpu", "laptop", "wifi-high", "code"] },
+  { topic: "Entertainment",  name: "Rakan Rayid",            color: "#94507F", icons: ["film-slate", "popcorn", "game-controller", "music-notes"] },
+  { topic: "Business",       name: "Basem Alwabel",          color: "#3F6F68", icons: ["briefcase", "chart-line-up", "handshake", "coins"] },
+  { topic: "Industry",       name: "Hazim Almutairi",        color: "#85593B", icons: ["factory", "gear-six", "wrench", "hard-hat"] },
+  { topic: "Healthcare",     name: "Faris Ali",              color: "#B0525A", icons: ["heartbeat", "stethoscope", "first-aid", "pill"] },
+  { topic: "Social Media",   name: "Hamad Altassan",         color: "#7C5BA6", icons: ["chats-circle", "thumbs-up", "share-network", "hash"] },
+  { topic: "Sports",         name: "Moath Alharbi",          color: "#C0692F", icons: ["soccer-ball", "basketball", "trophy", "medal"] },
+  { topic: "Agriculture",    name: "Abdulrahman Alfadhel",   color: "#A07F2A", icons: ["grains", "tractor", "tree-palm", "carrot"] },
+  { topic: "Culture",        name: "Khalid Almutairi",       color: "#9A4A3C", icons: ["mask-happy", "palette", "coffee", "globe-hemisphere-east"] },
+  { topic: "Literature",     name: "Naser Majid",            color: "#7D3B4B", icons: ["book-open-text", "feather", "pen-nib", "quotes"] },
+  { topic: "Tourism",        name: "Hussam Alhudaithy",      color: "#2F8790", icons: ["airplane-tilt", "map-trifold", "suitcase-rolling", "camera"] },
+  { topic: "Wildlife",       name: "Khalid Alfadhel",        color: "#8A7236", icons: ["paw-print", "bird", "butterfly", "fish"] },
+  { topic: "Environment",    name: "Tamim Ali",              color: "#5B8A4C", icons: ["plant", "leaf", "tree-evergreen", "flower-tulip"] },
+  { topic: "Psychology",     name: "Eyad Alwabel",           color: "#6C68A8", icons: ["brain", "smiley", "head-circuit", "puzzle-piece"] },
+  { topic: "Innovation",     name: "Abdllah Alnawshan",      color: "#B88A1E", icons: ["lightbulb-filament", "rocket-launch", "atom", "sparkle"] },
+  { topic: "Transportation", name: "Anas Saeed",             color: "#3D6FA8", icons: ["train", "car-profile", "bus", "bicycle"] },
+  { topic: "Housing",        name: "Hatim Alsuhaibani",      color: "#A2653F", icons: ["house-line", "buildings", "key", "couch"] },
+  { topic: "Sociology",      name: "Abdlrahman Alsuhaibani", color: "#3E8573", icons: ["users-three", "user-circle", "heart", "globe"] },
+  { topic: "Philosophy",     name: "Ali Aljibali",           color: "#5A6276", icons: ["bank", "scales", "hourglass", "infinity"] },
+];
+
+TOPICS.forEach((t, i) => {
+  t.n = i + 1;
+  t.slug = t.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+});
+const bySlug = Object.fromEntries(TOPICS.map(t => [t.slug, t]));
+const pad = n => String(n).padStart(2, "0");
+const svg = (name, weight) =>
+  `<svg viewBox="0 0 256 256" fill="currentColor">${ICONS[name + ":" + weight] || ""}</svg>`;
+const artHTML = t =>
+  `<span class="ic big">${svg(t.icons[0], "duothin")}</span>` +
+  `<span class="ic s1">${svg(t.icons[1], "light")}</span>` +
+  `<span class="ic s2">${svg(t.icons[2], "light")}</span>` +
+  `<span class="ic s3">${svg(t.icons[3], "light")}</span>`;
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const root = document.documentElement;
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+const canMorph = () => typeof document.startViewTransition === "function" && !reduced.matches;
+
+// Topic tiles
+document.getElementById("grid").innerHTML = TOPICS.map(t => `
+  <a class="card" href="#${t.slug}" style="--c:${t.color}" aria-label="Topic ${t.n}: ${esc(t.topic)}">
+    <span class="art" aria-hidden="true">${artHTML(t)}</span>
+    <span class="card-copy">
+      <span class="num">Topic ${pad(t.n)}</span>
+      <span class="title">${esc(t.topic)}</span>
+    </span>
+    <span class="plus" aria-hidden="true"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg></span>
+  </a>`).join("");
+
+// Hero orbit: 8 topics on the inner ring, 12 on the outer ring
+const ring = (cls, list, offset) => `<div class="ring ${cls}">` + list.map((t, k) => `
+  <div class="chip" style="--a:${offset + (360 / list.length) * k}deg">
+    <div class="chip-in">
+      <a class="bubble" href="#${t.slug}" style="--c:${t.color};--i:${t.n}" title="${esc(t.topic)}" aria-hidden="true" tabindex="-1">${svg(t.icons[0], "duotone")}</a>
+    </div>
+  </div>`).join("") + `</div>`;
+document.getElementById("orbit").innerHTML =
+  ring("r1", TOPICS.filter((_, i) => i % 5 === 0 || i % 5 === 3), 22) +
+  ring("r2", TOPICS.filter((_, i) => !(i % 5 === 0 || i % 5 === 3)), 8);
+
+// The orbit turns all the time; it rests only while off screen, under an open topic, or when paused.
+const hero = document.querySelector(".hero");
+const motionBtn = document.getElementById("motion");
+motionBtn.addEventListener("click", () => {
+  const paused = hero.classList.toggle("paused");
+  motionBtn.setAttribute("aria-label", paused ? "Play animation" : "Pause animation");
+});
+if ("IntersectionObserver" in window) {
+  new IntersectionObserver(([e]) => hero.classList.toggle("offscreen", !e.isIntersecting)).observe(hero);
+}
+
+// Tiles rise in one after another as they scroll into view
+if ("IntersectionObserver" in window && !reduced.matches) {
+  root.classList.add("reveal-ready");
+  const io = new IntersectionObserver(entries => {
+    entries
+      .filter(e => e.isIntersecting)
+      .sort((a, b) => (a.boundingClientRect.top - b.boundingClientRect.top) || (a.boundingClientRect.left - b.boundingClientRect.left))
+      .forEach((e, k) => {
+        e.target.style.setProperty("--d", k * 90 + "ms");
+        e.target.classList.add("in");
+        io.unobserve(e.target);
+      });
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.12 });
+  document.querySelectorAll(".card").forEach(c => io.observe(c));
+}
+
+// Topic sheet, routed on the URL hash (#environment, #social-media, ...)
+const sheet = document.getElementById("sheet");
+const panel = document.getElementById("sheet-card");
+const scrim = sheet.querySelector(".scrim");
+let current = null;
+let lastFocus = null;
+let busy = false;
+
+function fill(t) {
+  const prev = TOPICS[(t.n - 2 + TOPICS.length) % TOPICS.length];
+  const next = TOPICS[t.n % TOPICS.length];
+  panel.style.setProperty("--c", t.color);
+  document.getElementById("sheet-art").innerHTML = artHTML(t);
+  document.getElementById("sheet-num").textContent = "Topic " + pad(t.n);
+  document.getElementById("sheet-title").textContent = t.topic;
+  document.getElementById("sheet-name").textContent = t.name;
+  document.getElementById("sheet-avatar").textContent =
+    t.name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const p = document.getElementById("prev"), n = document.getElementById("next");
+  p.href = "#" + prev.slug; p.querySelector("span").textContent = "← " + prev.topic;
+  n.href = "#" + next.slug; n.querySelector("span").textContent = next.topic + " →";
+  current = t;
+}
+
+function show(t, enter) {
+  fill(t);
+  if (sheet.hidden) {
+    lastFocus = document.activeElement;
+    sheet.dataset.enter = enter;
+    sheet.hidden = false;
+    root.classList.add("is-sheet-open");
+    root.style.overflow = "hidden";
+  }
+  sheet.scrollTop = 0;
+  panel.focus({ preventScroll: true });
+}
+
+function hide() {
+  if (sheet.hidden) return;
+  sheet.hidden = true;
+  current = null;
+  root.classList.remove("is-sheet-open");
+  root.style.overflow = "";
+  if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+}
+
+function setHash(slug, replace) {
+  if (location.hash.slice(1) === slug) return;
+  if (replace) location.replace("#" + slug);
+  else location.hash = slug;
+}
+
+// Runs a DOM update as a view transition; `from` and `to()` carry the shared "topic" shape.
+function morph(update, from, to) {
+  let target = null;
+  if (from) from.style.viewTransitionName = "topic";
+  const vt = document.startViewTransition(() => {
+    if (from) from.style.viewTransitionName = "";
+    update();
+    target = to ? to() : null;
+    if (target) target.style.viewTransitionName = "topic";
+  });
+  return vt.finished.catch(() => {}).finally(() => {
+    if (target) target.style.viewTransitionName = "";
+    if (from) from.style.viewTransitionName = "";
+  });
+}
+
+function onScreen(el) {
+  if (!el) return false;
+  if (root.classList.contains("reveal-ready") && !el.classList.contains("in")) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+}
+
+function openFrom(el, t) {
+  if (busy || !sheet.hidden) return;
+  if (!canMorph()) { show(t, "fade"); setHash(t.slug, false); return; }
+  busy = true;
+  morph(() => { show(t, "morph"); setHash(t.slug, false); }, el, () => panel)
+    .finally(() => { busy = false; });
+}
+
+async function close() {
+  if (sheet.hidden || busy) return;
+  busy = true;
+  const tile = current && document.querySelector(`.card[href="#${current.slug}"]`);
+  if (canMorph() && onScreen(tile)) {
+    await morph(() => { hide(); setHash("", true); }, panel, () => tile);
+  } else {
+    const opts = { duration: 240, easing: "cubic-bezier(.4, 0, 1, 1)", fill: "forwards" };
+    const a = panel.animate([{ opacity: 1, transform: "none" },
+      { opacity: 0, transform: reduced.matches ? "none" : "translateY(28px) scale(.98)" }], opts);
+    const b = scrim.animate([{ opacity: 1 }, { opacity: 0 }], opts);
+    await Promise.all([a.finished, b.finished]).catch(() => {});
+    hide(); setHash("", true);
+    a.cancel(); b.cancel();
+  }
+  busy = false;
+}
+
+function swap(t, dir) {
+  if (busy || !current || t === current) return;
+  if (canMorph()) {
+    busy = true;
+    root.dataset.dir = dir;
+    morph(() => { show(t); setHash(t.slug, true); }, panel, () => panel)
+      .finally(() => { delete root.dataset.dir; busy = false; });
+    return;
+  }
+  show(t); setHash(t.slug, true);
+  if (reduced.matches) return;
+  const x = dir === "next" ? 36 : -36;
+  panel.querySelectorAll(".banner, .sheet-body").forEach((el, k) => el.animate(
+    [{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: "none" }],
+    { duration: 420, delay: k * 50, easing: "cubic-bezier(.2, .8, .2, 1)", fill: "backwards" }));
+}
+
+function step(by) {
+  if (!current) return;
+  swap(TOPICS[(current.n - 1 + by + TOPICS.length) % TOPICS.length], by > 0 ? "next" : "prev");
+}
+
+function route() {
+  const t = bySlug[decodeURIComponent(location.hash.slice(1))];
+  if (t) {
+    if (current === t && !sheet.hidden) return;
+    show(t, "fade");
+  } else if (!sheet.hidden) {
+    close();
+  }
+}
+
+document.addEventListener("click", e => {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const pagerLink = e.target.closest(".pager a");
+  if (pagerLink) {
+    e.preventDefault();
+    step(pagerLink.id === "next" ? 1 : -1);
+    return;
+  }
+  const opener = e.target.closest(".card, .bubble");
+  if (opener) {
+    const t = bySlug[opener.getAttribute("href").slice(1)];
+    if (t) { e.preventDefault(); openFrom(opener, t); }
+    return;
+  }
+  if (e.target.closest("[data-close]")) { e.preventDefault(); close(); }
+});
+
+document.addEventListener("keydown", e => {
+  if (sheet.hidden) return;
+  if (e.key === "Escape") close();
+  else if (e.key === "ArrowRight") step(1);
+  else if (e.key === "ArrowLeft") step(-1);
+});
+
+// Swipe left or right on the open topic to move between topics
+let swipe = null;
+panel.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "mouse") swipe = { x: e.clientX, y: e.clientY };
+});
+panel.addEventListener("pointerup", e => {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  swipe = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+});
+panel.addEventListener("pointercancel", () => { swipe = null; });
+
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
