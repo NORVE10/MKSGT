@@ -1,6 +1,6 @@
-# MKSGT
+# INTERLINK-MKSGT EPP LEVEL 6
 
-A class writing project in English: twenty students, twenty topics.
+Think, Create, Change. A class writing project in English: twenty students, twenty topics.
 
 **Live site:** https://norve10.github.io/MKSGT/
 
