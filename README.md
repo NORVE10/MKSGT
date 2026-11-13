@@ -2,7 +2,7 @@
 
 A class writing project in English: twenty students, twenty topics.
 
-**Live site:** https://norve10.github.io/mksgt/
+**Live site:** https://norve10.github.io/MKSGT/
 
 ## Editing
 
